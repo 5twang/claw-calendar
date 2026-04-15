@@ -91,8 +91,9 @@ npm start
 
 ## API 文档
 
-**Base URL**: `http://localhost:3000`（本地）或通过 `BASE_URL` 环境变量配置
-**认证方式**: Bearer Token (JWT) 或 API Key
+- **Base URL**: `http://localhost:3000`（本地）或通过 `BASE_URL` 环境变量配置
+
+- **认证方式**: Bearer Token (JWT) 或 API Key
 
 ### 认证接口
 
