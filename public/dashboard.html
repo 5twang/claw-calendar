@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claw-Calendar</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- 导航栏 -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="/dashboard.html" class="navbar-brand">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="16" y1="2" x2="16" y2="6"></line>
+          <line x1="8" y1="2" x2="8" y2="6"></line>
+          <line x1="3" y1="10" x2="21" y2="10"></line>
+        </svg>
+        <span>Claw-Calendar</span>
+      </a>
+      <button class="navbar-toggle" onclick="toggleNavbar()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+      <div class="navbar-nav" id="navbar-nav">
+        <a href="/dashboard.html" class="nav-link">控制台</a>
+        <a href="/calendar.html" class="nav-link">日历</a>
+        <a href="/apikeys.html" class="nav-link">API Keys</a>
+        <a href="/profile.html" class="nav-link">设置</a>
+        <button onclick="logout()" class="btn btn-sm btn-outline">退出</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Toast 通知容器 -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- 主内容 -->
+  <main class="main-content">
+    <div class="container">
+      <!-- 用户信息卡片 -->
+      <div class="user-profile">
+        <div class="user-avatar" id="user-avatar">
+          <!-- 首字母 -->
+        </div>
+        <div class="user-info">
+          <h2 id="user-name">加载中...</h2>
+          <p id="user-email">...</p>
+        </div>
+      </div>
+
+      <!-- 统计卡片 -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="calendar-count">-</div>
+          <div class="stat-label">日历数量</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="apikey-count">-</div>
+          <div class="stat-label">API Keys</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="account-date">-</div>
+          <div class="stat-label">注册时间</div>
+        </div>
+      </div>
+
+      <!-- 快速操作 -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">快速操作</h3>
+        </div>
+        <div class="card-body">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+            <a href="/apikeys.html" class="btn btn-primary" style="justify-content: flex-start; padding: 16px 20px;">
+              <svg width="24" height="24" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z" clip-rule="evenodd"/>
+              </svg>
+              <div style="text-align: left;">
+                <div style="font-weight: 600;">管理 API Keys</div>
+                <div style="font-size: 0.85rem; opacity: 0.9; font-weight: 400;">创建和管理访问密钥</div>
+              </div>
+            </a>
+            
+            <a href="/profile.html" class="btn btn-secondary" style="justify-content: flex-start; padding: 16px 20px;">
+              <svg width="24" height="24" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+              </svg>
+              <div style="text-align: left;">
+                <div style="font-weight: 600;">个人设置</div>
+                <div style="font-size: 0.85rem; opacity: 0.8; font-weight: 400;">修改密码和账户信息</div>
+              </div>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- 快速开始 -->
+      <div class="card" style="margin-top: 24px;">
+        <div class="card-header">
+          <h3 class="card-title">快速开始</h3>
+        </div>
+        <div class="card-body">
+          <div style="display: grid; gap: 20px;">
+            <!-- 步骤1：获取 API Key -->
+            <div style="display: flex; gap: 16px; align-items: flex-start;">
+              <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">1</div>
+              <div>
+                <h4 style="margin-bottom: 4px; color: var(--gray-900);">获取 API Key</h4>
+                <p style="color: var(--gray-600); font-size: 0.95rem;">前往 <a href="/apikeys.html" style="color: var(--primary);">API Keys 页面</a> 创建访问密钥，复制生成的密钥。</p>
+              </div>
+            </div>
+            
+            <!-- 步骤2：配置 WorkBuddy -->
+            <div style="display: flex; gap: 16px; align-items: flex-start;">
+              <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">2</div>
+              <div style="flex: 1;">
+                <h4 style="margin-bottom: 4px; color: var(--gray-900);">配置 WorkBuddy</h4>
+                
+                <!-- 推荐方式：WorkBuddy 自动配置 -->
+                <div style="margin-top: 12px; padding: 16px; background: #f0fdf4; border: 1px solid #86efac; border-radius: var(--radius);">
+                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                    <span style="background: #22c55e; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">推荐</span>
+                    <span style="font-weight: 600; color: #15803d;">让 WorkBuddy 自动完成</span>
+                  </div>
+                  <p style="color: #166534; font-size: 0.9rem; margin-bottom: 8px;">只需把 API Key 告诉 WorkBuddy，它会自动保存并配置好。</p>
+                  <div style="padding: 12px; background: var(--gray-800); color: #4ade80; border-radius: 6px; font-family: monospace; font-size: 0.85rem;">
+                    <div style="color: #60a5fa;">我：</div>
+                    <div>"这是我的 API Key: claw-calendar-xxxxxxxxxxxxxxxx"</div>
+                    <div style="margin-top: 8px; color: #22c55e;">✅ 已创建「默认」日历</div>
+                    <div style="color: #22c55e;">✅ 配置已保存</div>
+                    <div style="margin-top: 4px;">📅 默认日历: 默认</div>
+                  </div>
+                </div>
+                
+                <!-- 备用方式：手动配置 -->
+                <details style="margin-top: 16px;">
+                  <summary style="cursor: pointer; color: var(--gray-600); font-size: 0.9rem; padding: 8px 0;">💡 手动配置（备用）</summary>
+                  <div style="margin-top: 12px; padding: 16px; background: var(--gray-50); border-radius: var(--radius);">
+                    <p style="color: var(--gray-600); font-size: 0.9rem; margin-bottom: 12px;">在 Calendar Skill 目录下创建 <code style="background: var(--gray-100); padding: 2px 6px; border-radius: 4px; font-family: monospace;">.env</code> 文件：</p>
+                    <div style="padding: 12px; background: var(--gray-800); color: #4ade80; border-radius: 6px; font-family: monospace; font-size: 0.85rem;">
+                      <div style="color: #6b7280;"># Claw Calendar API 配置</div>
+                      <div>CALENDAR_API_URL=https://api.claw-calendar.com</div>
+                      <div>CALENDAR_API_KEY=你的API密钥</div>
+                    </div>
+                  </div>
+                </details>
+              </div>
+            </div>
+            
+            <!-- 步骤3：创建日程 -->
+            <div style="display: flex; gap: 16px; align-items: flex-start;">
+              <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">3</div>
+              <div style="flex: 1;">
+                <h4 style="margin-bottom: 4px; color: var(--gray-900);">用 WorkBuddy 创建日程</h4>
+                <p style="color: var(--gray-600); font-size: 0.95rem;">告诉 WorkBuddy 你想创建什么日程，例如：</p>
+                <div style="margin-top: 12px; padding: 16px; background: var(--gray-800); color: #4ade80; border-radius: var(--radius); font-family: monospace; font-size: 0.85rem;">
+                  <div style="color: #60a5fa;">我：</div>
+                  <div>"明天下午3点有一个产品评审会，帮我添加到日历"</div>
+                  <div style="margin-top: 8px; color: #60a5fa;">WorkBuddy：</div>
+                  <div>"已为你创建日程：产品评审会<br>时间：2026-04-14 15:00<br>是否需要提醒？"</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 完整示例 -->
+          <div style="margin-top: 24px; padding: 20px; background: var(--gray-50); border-radius: var(--radius); border-left: 4px solid var(--primary);">
+            <h4 style="margin-bottom: 12px; color: var(--gray-900);">常用场景示例</h4>
+            <div style="display: grid; gap: 12px; font-size: 0.9rem;">
+              <div style="padding: 12px; background: white; border-radius: 8px; border: 1px solid var(--gray-200);">
+                <div style="color: var(--gray-500); font-size: 0.8rem; margin-bottom: 4px;">📅 添加生日提醒</div>
+                <div style="color: var(--gray-700);">"4月20日是妈妈的生日，提前一天提醒我"</div>
+              </div>
+              <div style="padding: 12px; background: white; border-radius: 8px; border: 1px solid var(--gray-200);">
+                <div style="color: var(--gray-500); font-size: 0.8rem; margin-bottom: 4px;">💼 安排会议</div>
+                <div style="color: var(--gray-700);">"下周一上午10点预约李明开会讨论项目进度"</div>
+              </div>
+              <div style="padding: 12px; background: white; border-radius: 8px; border: 1px solid var(--gray-200);">
+                <div style="color: var(--gray-500); font-size: 0.8rem; margin-bottom: 4px;">📚 制定计划</div>
+                <div style="color: var(--gray-700);">"从明天开始每天早上8点提醒我背单词"</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="/js/auth.js"></script>
+  <script src="/js/apikeys.js"></script>
+  <script src="/js/pages.js"></script>
+</body>
+</html>

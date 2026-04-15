@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>注册 - Claw-Calendar</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .step-indicator {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 32px;
+      padding: 40px 40px 0;
+    }
+    .step {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 600;
+      background: var(--gray-200);
+      color: var(--gray-500);
+      transition: all 0.3s;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 1;
+    }
+    .step.active {
+      background: var(--primary);
+      color: white;
+    }
+    .step.completed {
+      background: var(--success);
+      color: white;
+    }
+    .step-line {
+      flex: 1;
+      height: 2px;
+      background: var(--gray-200);
+      transition: background 0.3s;
+      margin-top: -1px;
+    }
+    .step-line.completed {
+      background: var(--success);
+    }
+    .step-content {
+      display: none;
+    }
+    .step-content.active {
+      display: block;
+    }
+    .btn-link {
+      background: none;
+      border: none;
+      color: var(--primary);
+      cursor: pointer;
+      text-decoration: underline;
+      font-size: inherit;
+    }
+    .btn-link:disabled {
+      color: var(--gray-400);
+      cursor: not-allowed;
+    }
+    .countdown {
+      font-size: 14px;
+      color: var(--gray-500);
+    }
+  </style>
+</head>
+<body>
+  <!-- Toast 通知容器 -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <div class="auth-page">
+    <div class="auth-box">
+      <div class="card">
+        <div class="card-header" style="text-align: center;">
+          <div style="margin-bottom: 16px;">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+          </div>
+          <h1 class="card-title">创建账户</h1>
+          <p class="card-subtitle">开始使用 Claw-Calendar</p>
+        </div>
+
+        <!-- 步骤指示器 -->
+        <div class="step-indicator">
+          <div class="step active" id="step1-indicator">1</div>
+          <div class="step-line" id="line1"></div>
+          <div class="step" id="step2-indicator">2</div>
+          <div class="step-line" id="line2"></div>
+          <div class="step" id="step3-indicator">3</div>
+        </div>
+
+        <div class="card-body">
+          <!-- 步骤1：输入邮箱 -->
+          <div class="step-content active" id="step1">
+            <div class="form-group">
+              <label class="form-label" for="email">邮箱地址 *</label>
+              <input
+                type="email"
+                id="email"
+                class="form-input"
+                placeholder="your@email.com"
+                required
+                autocomplete="email"
+              >
+              <p class="form-hint">用于登录和找回密码</p>
+            </div>
+            <button type="button" id="sendCodeBtn" class="btn btn-primary btn-block">
+              发送验证码
+            </button>
+          </div>
+
+          <!-- 步骤2：输入验证码 -->
+          <div class="step-content" id="step2">
+            <p style="color: var(--gray-600); margin-bottom: 16px;">
+              验证码已发送至 <strong id="sentEmail"></strong>
+            </p>
+            <div class="form-group">
+              <label class="form-label" for="code">验证码 *</label>
+              <input
+                type="text"
+                id="code"
+                class="form-input"
+                placeholder="请输入6位验证码"
+                pattern="[0-9]{6}"
+                maxlength="6"
+                required
+                autocomplete="one-time-code"
+              >
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="name">姓名（可选）</label>
+              <input
+                type="text"
+                id="name"
+                class="form-input"
+                placeholder="请输入您的姓名"
+                autocomplete="name"
+              >
+            </div>
+            <button type="button" id="verifyCodeBtn" class="btn btn-primary btn-block">
+              验证并继续
+            </button>
+            <p style="text-align: center; margin-top: 16px; font-size: 14px; color: var(--gray-500);">
+              <span id="countdown" class="countdown"></span>
+              <button type="button" id="resendBtn" class="btn-link" disabled>重新发送验证码</button>
+            </p>
+            <p style="text-align: center; margin-top: 8px;">
+              <button type="button" class="btn-link" id="backToStep1">重新输入邮箱</button>
+            </p>
+          </div>
+
+          <!-- 步骤3：设置密码 -->
+          <div class="step-content" id="step3">
+            <p style="color: var(--gray-600); margin-bottom: 16px;">
+              最后一步，设置您的密码
+            </p>
+            <div class="form-group">
+              <label class="form-label" for="password">密码 *</label>
+              <input
+                type="password"
+                id="password"
+                class="form-input"
+                placeholder="至少8位字符"
+                required
+                minlength="8"
+                autocomplete="new-password"
+              >
+              <p class="form-hint">密码长度至少8位</p>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="confirmPassword">确认密码 *</label>
+              <input
+                type="password"
+                id="confirmPassword"
+                class="form-input"
+                placeholder="再次输入密码"
+                required
+                autocomplete="new-password"
+              >
+            </div>
+            <button type="button" id="registerBtn" class="btn btn-primary btn-block">
+              完成注册
+            </button>
+          </div>
+
+          <!-- 成功提示 -->
+          <div class="step-content" id="success" style="text-align: center;">
+            <div style="margin-bottom: 24px;">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+            </div>
+            <h2 style="color: var(--gray-800); margin-bottom: 8px;">注册成功！</h2>
+            <p style="color: var(--gray-600); margin-bottom: 24px;">欢迎加入 Claw-Calendar</p>
+            <a href="/login.html" class="btn btn-primary btn-block">立即登录</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="auth-footer">
+        已有账户？<a href="/login.html">立即登录</a>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // 状态管理
+    let currentStep = 1;
+    let email = '';
+    let countdownTimer = null;
+
+    // DOM 元素
+    const steps = [1, 2, 3];
+    const stepIndicators = {
+      1: document.getElementById('step1-indicator'),
+      2: document.getElementById('step2-indicator'),
+      3: document.getElementById('step3-indicator')
+    };
+    const lines = {
+      1: document.getElementById('line1'),
+      2: document.getElementById('line2')
+    };
+    const stepContents = {
+      1: document.getElementById('step1'),
+      2: document.getElementById('step2'),
+      3: document.getElementById('step3'),
+      success: document.getElementById('success')
+    };
+
+    // 更新步骤显示
+    function updateSteps() {
+      // 更新指示器
+      Object.keys(stepIndicators).forEach(step => {
+        const indicator = stepIndicators[step];
+        indicator.classList.remove('active', 'completed');
+        if (parseInt(step) < currentStep) {
+          indicator.classList.add('completed');
+          indicator.innerHTML = '✓';
+        } else if (parseInt(step) === currentStep) {
+          indicator.classList.add('active');
+          indicator.innerHTML = step;
+        } else {
+          indicator.innerHTML = step;
+        }
+      });
+
+      // 更新连线
+      Object.keys(lines).forEach(line => {
+        if (parseInt(line) < currentStep) {
+          lines[line].classList.add('completed');
+        } else {
+          lines[line].classList.remove('completed');
+        }
+      });
+
+      // 更新内容
+      Object.keys(stepContents).forEach(key => {
+        stepContents[key].classList.remove('active');
+      });
+      if (currentStep === 'success') {
+        stepContents.success.classList.add('active');
+      } else {
+        stepContents[currentStep].classList.add('active');
+      }
+    }
+
+      // 显示 Toast 消息
+    function showMessage(text, type = 'error') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = 'toast toast-' + type;
+      toast.textContent = typeof text === 'string' ? text : (text?.error || text?.message || JSON.stringify(text));
+      container.appendChild(toast);
+
+      // 3秒后自动移除
+      setTimeout(() => {
+        toast.classList.add('hide');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    function hideMessage() {
+      // Toast 会自动消失，不需要手动隐藏
+    }
+
+    // 发送验证码
+    async function sendCode() {
+      const emailInput = document.getElementById('email');
+      const sendBtn = document.getElementById('sendCodeBtn');
+
+      email = emailInput.value.trim();
+      if (!email) {
+        showMessage('请输入邮箱地址');
+        return;
+      }
+
+      // 简单验证邮箱格式
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        showMessage('请输入有效的邮箱地址');
+        return;
+      }
+
+      sendBtn.disabled = true;
+      sendBtn.textContent = '发送中...';
+
+      try {
+        const response = await fetch('/api/auth/send-register-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          // 跳转到步骤2
+          currentStep = 2;
+          document.getElementById('sentEmail').textContent = email;
+          updateSteps();
+          startCountdown();
+          // 清空邮箱输入
+          emailInput.value = email;
+        } else {
+          showMessage(data.error?.message || data.error || '发送失败，请稍后重试');
+        }
+      } catch (err) {
+        showMessage('网络错误，请稍后重试');
+      } finally {
+        sendBtn.disabled = false;
+        sendBtn.textContent = '发送验证码';
+      }
+    }
+
+    // 验证码倒计时
+    function startCountdown() {
+      let seconds = 60;
+      const countdownEl = document.getElementById('countdown');
+      const resendBtn = document.getElementById('resendBtn');
+
+      countdownEl.textContent = `${seconds}秒后可重新发送 `;
+
+      if (countdownTimer) clearInterval(countdownTimer);
+
+      countdownTimer = setInterval(() => {
+        seconds--;
+        if (seconds <= 0) {
+          clearInterval(countdownTimer);
+          countdownEl.textContent = '';
+          resendBtn.disabled = false;
+        } else {
+          countdownEl.textContent = `${seconds}秒后可重新发送 `;
+        }
+      }, 1000);
+    }
+
+    // 验证验证码
+    async function verifyCode() {
+      const codeInput = document.getElementById('code');
+
+      const code = codeInput.value.trim();
+      if (!code || code.length !== 6) {
+        showMessage('请输入6位验证码');
+        return;
+      }
+
+      const verifyBtn = document.getElementById('verifyCodeBtn');
+      verifyBtn.disabled = true;
+      verifyBtn.textContent = '验证中...';
+
+      try {
+        const response = await fetch('/api/auth/verify-register-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, code })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          // 跳转到步骤3
+          currentStep = 3;
+          updateSteps();
+        } else {
+          showMessage(data.error?.message || data.error || '验证码验证失败');
+        }
+      } catch (err) {
+        showMessage('网络错误，请稍后重试');
+      } finally {
+        verifyBtn.disabled = false;
+        verifyBtn.textContent = '验证并继续';
+      }
+    }
+
+    // 完成注册
+    async function completeRegistration() {
+      const passwordInput = document.getElementById('password');
+      const confirmInput = document.getElementById('confirmPassword');
+      const nameInput = document.getElementById('name');
+
+      const password = passwordInput.value;
+      const confirmPassword = confirmInput.value;
+      const name = nameInput.value.trim();
+
+      if (!password || password.length < 8) {
+        showMessage('密码长度至少8位');
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        showMessage('两次输入的密码不一致');
+        return;
+      }
+
+      const registerBtn = document.getElementById('registerBtn');
+      registerBtn.disabled = true;
+      registerBtn.textContent = '注册中...';
+
+      try {
+        const response = await fetch('/api/auth/register-with-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, code: document.getElementById('code').value.trim(), password, name })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          // 显示成功
+          currentStep = 'success';
+          updateSteps();
+        } else {
+          showMessage(data.error?.message || data.error || '注册失败，请稍后重试');
+        }
+      } catch (err) {
+        showMessage('网络错误，请稍后重试');
+      } finally {
+        registerBtn.disabled = false;
+        registerBtn.textContent = '完成注册';
+      }
+    }
+
+    // 重新发送验证码
+    async function resendCode() {
+      const resendBtn = document.getElementById('resendBtn');
+      resendBtn.disabled = true;
+
+      try {
+        const response = await fetch('/api/auth/send-register-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          startCountdown();
+          showMessage('验证码已重新发送', 'success');
+        } else {
+          showMessage(data.error?.message || data.error || '发送失败，请稍后重试');
+          resendBtn.disabled = false;
+        }
+      } catch (err) {
+        showMessage('网络错误，请稍后重试');
+        resendBtn.disabled = false;
+      }
+    }
+
+    // 返回步骤1
+    function backToStep1() {
+      currentStep = 1;
+      if (countdownTimer) clearInterval(countdownTimer);
+      document.getElementById('countdown').textContent = '';
+      document.getElementById('resendBtn').disabled = false;
+      hideMessage();
+      updateSteps();
+    }
+
+    // 事件绑定
+    document.getElementById('sendCodeBtn').addEventListener('click', sendCode);
+    document.getElementById('verifyCodeBtn').addEventListener('click', verifyCode);
+    document.getElementById('registerBtn').addEventListener('click', completeRegistration);
+    document.getElementById('resendBtn').addEventListener('click', resendCode);
+    document.getElementById('backToStep1').addEventListener('click', backToStep1);
+
+    // 输入时清除错误消息
+    document.querySelectorAll('input').forEach(input => {
+      input.addEventListener('input', hideMessage);
+    });
+  </script>
+</body>
+</html>

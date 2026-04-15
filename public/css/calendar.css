@@ -1,0 +1,915 @@
+/* Claw-Calendar - 日历视图专属样式 */
+
+/* ─── 整体布局 ──────────────────────────────────────────────── */
+
+.main-layout {
+  display: flex;
+  height: calc(100vh - 64px);
+  margin-top: 64px;
+  overflow: hidden;
+}
+
+/* ─── 左侧边栏 ──────────────────────────────────────────────── */
+
+.cal-sidebar {
+  width: 260px;
+  min-width: 220px;
+  background: rgba(255, 255, 255, 0.97);
+  border-right: 1px solid var(--gray-200);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-section {
+  padding: 16px;
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.sidebar-section:last-child {
+  border-bottom: none;
+  overflow-y: auto;
+}
+
+.sidebar-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+
+.sidebar-empty {
+  font-size: 0.85rem;
+  color: var(--gray-400);
+  text-align: center;
+  padding: 16px 0;
+}
+
+.loading-placeholder {
+  font-size: 0.85rem;
+  color: var(--gray-400);
+  padding: 8px 0;
+}
+
+/* 日历列表项 */
+.calendar-list-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar-cal-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: background 0.15s;
+  cursor: default;
+}
+
+.sidebar-cal-item:hover {
+  background: var(--gray-50);
+}
+
+.sidebar-cal-item:hover .cal-item-actions {
+  opacity: 1;
+}
+
+.cal-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cal-label {
+  flex: 1;
+  font-size: 0.875rem;
+  color: var(--gray-700);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cal-count {
+  font-size: 0.75rem;
+  color: var(--gray-400);
+  background: var(--gray-100);
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.cal-item-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.btn-icon-xs {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--gray-400);
+  transition: background 0.15s, color 0.15s;
+}
+
+.btn-icon-xs:hover {
+  background: var(--gray-100);
+  color: var(--gray-700);
+}
+
+.btn-icon-xs.danger:hover {
+  background: #fee2e2;
+  color: var(--danger);
+}
+
+/* 即将到来的日程 */
+.upcoming-events {
+  overflow-y: auto;
+  flex: 1;
+  padding-right: 4px;
+}
+
+.upcoming-group {
+  margin-bottom: 12px;
+}
+
+.upcoming-date {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--gray-500);
+  margin-bottom: 4px;
+  padding: 2px 4px;
+}
+
+.upcoming-date.today {
+  color: var(--primary);
+}
+
+.upcoming-event {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 8px;
+  border-left: 3px solid var(--primary);
+  border-radius: 0 6px 6px 0;
+  background: var(--gray-50);
+  margin-bottom: 3px;
+  gap: 6px;
+}
+
+.upcoming-event-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.upcoming-time {
+  font-size: 0.7rem;
+  color: var(--gray-500);
+  margin-bottom: 1px;
+}
+
+.upcoming-title {
+  font-size: 0.8rem;
+  color: var(--gray-700);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─── 右侧主区域 ────────────────────────────────────────────── */
+
+.cal-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 16px 20px;
+  background: var(--gray-50);
+}
+
+.cal-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-shrink: 0;
+}
+
+.cal-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cal-period-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--gray-800);
+  min-width: 140px;
+  text-align: center;
+}
+
+.cal-view-btns {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-icon-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--gray-300);
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--gray-600);
+  transition: background 0.15s, border-color 0.15s;
+  padding: 0;
+}
+
+.btn-icon-sm:hover {
+  background: var(--gray-50);
+  border-color: var(--gray-400);
+  color: var(--gray-800);
+}
+
+.btn-icon-sm svg {
+  display: block;
+}
+
+/* ─── 月视图 ────────────────────────────────────────────────── */
+
+.month-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  min-height: 0;
+}
+
+.month-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.month-weekdays > div {
+  text-align: center;
+  padding: 10px 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--gray-500);
+  text-transform: uppercase;
+}
+
+.month-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(6, minmax(60px, 1fr));
+  overflow: hidden;
+}
+
+.month-cell {
+  border-right: 1px solid var(--gray-100);
+  border-bottom: 1px solid var(--gray-100);
+  padding: 6px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: background 0.12s;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.month-cell:hover {
+  background: #f0f4ff;
+}
+
+.month-cell.other-month {
+  background: var(--gray-50);
+}
+
+.month-cell.other-month .month-day-num {
+  color: var(--gray-300);
+}
+
+.month-cell.today {
+  background: #eff6ff;
+}
+
+.month-day-num {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--gray-600);
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  margin-bottom: 2px;
+  flex-shrink: 0;
+}
+
+.month-day-num.today-num {
+  background: var(--primary);
+  color: white;
+  font-weight: 700;
+}
+
+.month-events {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.month-event-chip {
+  font-size: 0.72rem;
+  padding: 1px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+.event-time-label {
+  font-size: 0.65rem;
+  font-weight: 400;
+  opacity: 0.6;
+  padding-left: 6px;
+  margin-left: 4px;
+}
+
+.month-event-chip:hover {
+  opacity: 0.85;
+}
+
+.month-more {
+  font-size: 0.7rem;
+  color: var(--gray-400);
+  padding-left: 4px;
+}
+
+/* ─── 周视图 ────────────────────────────────────────────────── */
+
+.week-view {
+  flex: 1;
+  overflow: hidden;
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* 使用 Grid 布局确保列对齐 */
+.week-view .week-header-row,
+.week-view .week-all-day-row {
+  display: grid;
+  grid-template-columns: 60px repeat(7, 1fr);
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.week-view .week-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.week-header-row {
+  border-bottom: 1px solid var(--gray-200);
+  flex-shrink: 0;
+}
+
+.week-time-col-header {
+  min-width: 60px;
+  width: 60px;
+  border-right: 1px solid var(--gray-100);
+}
+
+.week-day-headers {
+  display: contents;
+}
+
+.week-day-header {
+  border-right: 1px solid var(--gray-100);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 8px;
+}
+
+.week-day-header:last-child {
+  border-right: none;
+}
+
+.week-day-header.today {
+  background: #eff6ff;
+}
+
+.week-day-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.week-day-num {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--gray-700);
+}
+
+.week-day-num.today-num {
+  background: var(--primary);
+  color: white;
+}
+
+/* 全天事件行 */
+.week-all-day-row {
+  border-bottom: 1px solid var(--gray-200);
+  flex-shrink: 0;
+}
+
+.week-all-day-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  font-size: 0.7rem;
+  color: var(--gray-500);
+  border-right: 1px solid var(--gray-100);
+  background: var(--gray-50);
+  min-width: 60px;
+  width: 60px;
+}
+
+.week-all-day-cells {
+  display: contents;
+}
+
+.week-all-day-cell {
+  border-right: 1px solid var(--gray-100);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.week-all-day-cell:last-child {
+  border-right: none;
+}
+
+.week-all-day-cell:hover {
+  background: #f8f9ff;
+}
+
+.week-all-day-cell.today {
+  background: #eff6ff;
+}
+
+.week-all-day-event {
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+.week-all-day-event:hover {
+  opacity: 0.9;
+}
+
+/* 滚动容器：分离时间标签和滚动区域 */
+.week-scroll-container {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.week-time-labels {
+  width: 60px;
+  min-width: 60px;
+  border-right: 1px solid var(--gray-100);
+  background: var(--gray-50);
+  overflow: hidden;
+}
+
+.week-time-label-item {
+  height: 60px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 8px;
+  font-size: 0.7rem;
+  color: var(--gray-400);
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.week-time-label-item:last-child {
+  border-bottom: none;
+}
+
+.week-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+}
+
+.week-grid {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* 事件层：与背景行使用相同的 Grid 布局，确保列对齐 */
+.week-events-layer {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none; /* 让点击穿透到下面的格子 */
+}
+
+/* 每天的事件容器 */
+.week-events-column {
+  position: relative;
+  height: 100%;
+  pointer-events: none;
+}
+
+.week-row {
+  height: 60px;
+  flex-shrink: 0;
+}
+
+.week-row:last-child {
+  border-bottom: none;
+}
+
+.week-time-cell {
+  border-right: 1px solid var(--gray-100);
+  padding: 0;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.week-time-cell:last-child {
+  border-right: none;
+}
+
+.week-time-cell:hover {
+  background: #f8f9ff;
+}
+
+.week-time-cell.today {
+  background: #eff6ff;
+}
+
+/* 事件本身可以点击 */
+.week-time-event-absolute {
+  pointer-events: auto;
+}
+
+/* 绝对定位的事件 */
+.week-time-event-absolute {
+  position: absolute;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  overflow: hidden;
+  padding: 4px 6px;
+  z-index: 10;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.week-time-event-absolute:hover {
+  opacity: 0.9;
+  z-index: 11;
+}
+
+.week-event-title {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.8rem;
+  margin-bottom: 2px;
+}
+
+.week-event-time {
+  font-size: 0.7rem;
+  opacity: 0.85;
+}
+
+/* ─── 日视图 ────────────────────────────────────────────────── */
+
+.day-view {
+  flex: 1;
+  overflow: hidden;
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+}
+
+.day-view-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--gray-100);
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.day-view-date {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--gray-800);
+}
+
+.day-view-weekday {
+  font-size: 0.95rem;
+  color: var(--gray-500);
+  margin-top: 4px;
+}
+
+.day-events {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+.day-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--gray-400);
+  font-size: 0.95rem;
+}
+
+.day-event-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-left: 4px solid var(--primary);
+  background: var(--gray-50);
+  border-radius: 0 8px 8px 0;
+  margin-bottom: 10px;
+  transition: background 0.15s;
+}
+
+.day-event-item:hover {
+  background: #f0f4ff;
+}
+
+.day-event-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.day-event-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--gray-800);
+  margin-bottom: 6px;
+}
+
+.day-event-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.8rem;
+  color: var(--gray-500);
+  margin-bottom: 6px;
+}
+
+.day-event-time {
+  font-weight: 500;
+  color: var(--gray-600);
+}
+
+.day-event-calendar {
+  font-weight: 500;
+}
+
+.day-event-desc {
+  font-size: 0.85rem;
+  color: var(--gray-600);
+  line-height: 1.5;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--gray-200);
+}
+
+/* ─── 颜色选择器 ────────────────────────────────────────────── */
+
+.color-picker {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.color-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s;
+  outline: none;
+}
+
+.color-dot:hover {
+  transform: scale(1.15);
+}
+
+.color-dot.active {
+  border-color: white;
+  box-shadow: 0 0 0 2px var(--gray-700);
+}
+
+/* ─── 响应式 ────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .main-layout {
+    flex-direction: column;
+    height: auto;
+    overflow: visible;
+  }
+
+  .cal-sidebar {
+    width: 100%;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--gray-200);
+    flex-direction: row;
+    overflow-x: auto;
+  }
+
+  .sidebar-section {
+    min-width: 200px;
+    border-bottom: none;
+    border-right: 1px solid var(--gray-100);
+    flex-shrink: 0;
+  }
+
+  .upcoming-events {
+    max-height: 180px;
+  }
+
+  .cal-main {
+    padding: 12px;
+  }
+
+  .month-view {
+    min-height: 400px;
+  }
+
+  .month-grid {
+    grid-template-rows: repeat(6, minmax(60px, 1fr));
+  }
+
+  .week-view {
+    min-height: 300px;
+  }
+
+  .week-grid {
+    height: auto;
+    min-height: 300px;
+  }
+
+  .cal-period-title {
+    font-size: 0.95rem;
+    min-width: 110px;
+  }
+}
+
+/* ─── 快捷键帮助弹窗 ─────────────────────────────────────── */
+
+.shortcuts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.shortcut-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.shortcut-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.shortcut-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: var(--gray-700);
+}
+
+.shortcut-item kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 26px;
+  padding: 0 8px;
+  background: var(--gray-100);
+  border: 1px solid var(--gray-300);
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--gray-700);
+  box-shadow: 0 1px 0 1px rgba(0,0,0,0.05);
+}
+
+/* ─── 快捷键提示悬浮层 ───────────────────────────────────── */
+
+.keyboard-hint {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.75);
+  color: white;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.keyboard-hint:hover {
+  opacity: 1;
+}
+
+.keyboard-hint kbd {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+}

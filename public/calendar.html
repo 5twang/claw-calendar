@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>日历 - Claw-Calendar</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/calendar.css">
+</head>
+<body>
+  <!-- 导航栏 -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="/dashboard.html" class="navbar-brand">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="16" y1="2" x2="16" y2="6"></line>
+          <line x1="8" y1="2" x2="8" y2="6"></line>
+          <line x1="3" y1="10" x2="21" y2="10"></line>
+        </svg>
+        Claw-Calendar
+      </a>
+      <button class="navbar-toggler" onclick="toggleNavbar()" aria-label="切换导航">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+      <div class="navbar-nav" id="navbar-nav">
+        <a href="/dashboard.html" class="nav-link">控制台</a>
+        <a href="/calendar.html" class="nav-link">日历</a>
+        <a href="/apikeys.html" class="nav-link">API Keys</a>
+        <a href="/profile.html" class="nav-link">设置</a>
+        <button onclick="logout()" class="btn btn-sm btn-outline">退出</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- 主体内容 -->
+  <div class="main-layout">
+    <!-- 左侧：日程列表 + 日历管理 -->
+    <aside class="cal-sidebar">
+      <!-- 日历列表 -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-header">
+          <span>我的日历</span>
+          <button class="btn-icon" onclick="showCreateCalendarModal()" title="新建日历">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+            </svg>
+          </button>
+        </div>
+        <div id="calendar-list-sidebar" class="calendar-list-sidebar">
+          <div class="loading-placeholder">加载中...</div>
+        </div>
+      </div>
+
+      <!-- 即将到来的日程 -->
+      <div class="sidebar-section" style="flex:1; overflow:hidden; display:flex; flex-direction:column;">
+        <div class="sidebar-section-header">
+          <span>即将到来</span>
+          <button class="btn btn-sm btn-primary" onclick="showCreateEventModal(null)">
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+            </svg>
+            新建
+          </button>
+        </div>
+        <div id="upcoming-events" class="upcoming-events">
+          <div class="loading-placeholder">加载中...</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 右侧：月/周视图 -->
+    <main class="cal-main">
+
+
+      <!-- 视图控制栏 -->
+      <div class="cal-toolbar">
+        <div class="cal-nav">
+          <button class="btn btn-icon-sm" onclick="navigate(-1)" title="上一期">
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"/>
+            </svg>
+          </button>
+          <button class="btn btn-sm btn-outline" onclick="goToday()">今天</button>
+          <button class="btn btn-icon-sm" onclick="navigate(1)" title="下一期">
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+            </svg>
+          </button>
+          <span id="current-period" class="cal-period-title">2026年3月</span>
+        </div>
+        <div class="cal-view-btns">
+          <button class="btn btn-sm btn-outline view-btn" data-view="day" onclick="switchCalView('day')">日</button>
+          <button class="btn btn-sm btn-outline view-btn" data-view="week" onclick="switchCalView('week')">周</button>
+          <button class="btn btn-sm btn-outline view-btn active" data-view="month" onclick="switchCalView('month')">月</button>
+        </div>
+      </div>
+
+      <!-- 月视图 -->
+      <div id="month-view" class="month-view">
+        <div class="month-weekdays">
+          <div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div>
+        </div>
+        <div id="month-grid" class="month-grid"></div>
+      </div>
+
+      <!-- 周视图 -->
+      <div id="week-view" class="week-view hidden">
+        <div class="week-header-row">
+          <div class="week-time-col-header"></div>
+          <div id="week-day-headers" class="week-day-headers"></div>
+        </div>
+        <div id="week-all-day-row" class="week-all-day-row"></div>
+        <div class="week-scroll-container">
+          <div class="week-time-labels">
+            <!-- 时间标签将在这里生成 -->
+          </div>
+          <div id="week-scroll-area" class="week-scroll-area hide-scrollbar">
+            <div id="week-grid" class="week-grid"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 日视图 -->
+      <div id="day-view" class="day-view hidden">
+        <div class="day-view-header">
+          <div class="day-view-date" id="day-view-date"></div>
+          <div class="day-view-weekday" id="day-view-weekday"></div>
+        </div>
+        <div id="day-events" class="day-events"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ── 创建/编辑日历 Modal ── -->
+  <div id="create-calendar-modal" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title" id="cal-modal-title">新建日历</h3>
+        <button class="modal-close" onclick="closeCreateCalendarModal()">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="cal-id">
+        <div class="form-group">
+          <label class="form-label">日历名称 *</label>
+          <input type="text" id="cal-name" class="form-input" placeholder="如：工作、个人、生日..." maxlength="50">
+        </div>
+        <div class="form-group">
+          <label class="form-label">描述</label>
+          <input type="text" id="cal-description" class="form-input" placeholder="可选描述" maxlength="200">
+        </div>
+        <div class="form-group" style="display:flex;gap:16px;align-items:center;">
+          <div style="flex:1;">
+            <label class="form-label">颜色</label>
+            <div class="color-picker" id="cal-color-picker">
+              <button class="color-dot active" data-color="#4f46e5" style="background:#4f46e5;" onclick="selectColor('#4f46e5', this)"></button>
+              <button class="color-dot" data-color="#10b981" style="background:#10b981;" onclick="selectColor('#10b981', this)"></button>
+              <button class="color-dot" data-color="#ef4444" style="background:#ef4444;" onclick="selectColor('#ef4444', this)"></button>
+              <button class="color-dot" data-color="#f59e0b" style="background:#f59e0b;" onclick="selectColor('#f59e0b', this)"></button>
+              <button class="color-dot" data-color="#06b6d4" style="background:#06b6d4;" onclick="selectColor('#06b6d4', this)"></button>
+              <button class="color-dot" data-color="#ec4899" style="background:#ec4899;" onclick="selectColor('#ec4899', this)"></button>
+            </div>
+          </div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:0.9rem;color:var(--gray-600);cursor:pointer;padding-top:20px;">
+            <input type="checkbox" id="cal-public" style="width:16px;height:16px;">
+            公开（可订阅）
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeCreateCalendarModal()">取消</button>
+        <button class="btn btn-primary" id="cal-submit-btn" onclick="createCalendar()">创建</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 创建/编辑日程 Modal ── -->
+  <div id="create-event-modal" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title" id="event-modal-title">新建日程</h3>
+        <button class="modal-close" onclick="closeCreateEventModal()">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">日历 *</label>
+          <select id="event-calendar-id" class="form-input">
+            <option value="">请选择日历</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">标题 *</label>
+          <input type="text" id="event-title" class="form-input" placeholder="日程标题" maxlength="100">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="form-group">
+            <label class="form-label">开始日期 *</label>
+            <input type="date" id="event-start-date" class="form-input">
+          </div>
+          <div class="form-group" id="start-time-group">
+            <label class="form-label">开始时间</label>
+            <input type="time" id="event-start-time" class="form-input">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="form-group">
+            <label class="form-label">结束日期</label>
+            <input type="date" id="event-end-date" class="form-input">
+          </div>
+          <div class="form-group" id="end-time-group">
+            <label class="form-label">结束时间</label>
+            <input type="time" id="event-end-time" class="form-input">
+          </div>
+        </div>
+        <div class="form-group" style="display:flex;align-items:center;gap:12px;margin-top:4px;">
+          <label class="form-checkbox" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+            <input type="checkbox" id="event-all-day" onchange="toggleAllDay(this.checked)">
+            <span>全天</span>
+          </label>
+        </div>
+        <div class="form-group">
+          <label class="form-label">地点</label>
+          <input type="text" id="event-location" class="form-input" placeholder="可选地点">
+        </div>
+        <div class="form-group">
+          <label class="form-label">备注</label>
+          <textarea id="event-description" class="form-input" rows="3" placeholder="可选备注" style="resize:vertical;"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeCreateEventModal()">取消</button>
+        <button class="btn btn-primary" onclick="saveEvent()">创建</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 日程详情 Modal ── -->
+  <div id="event-detail-modal" class="modal-overlay">
+    <div class="modal" style="max-width:420px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="detail-title">日程详情</h3>
+        <button class="modal-close" onclick="closeEventDetailModal()">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div id="detail-content" style="line-height:1.8;">
+          <!-- 动态填充 -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-danger" id="detail-delete-btn" onclick="deleteEventFromDetail()">删除</button>
+        <button class="btn btn-outline" onclick="closeEventDetailModal()">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 订阅链接 Modal ── -->
+  <div id="subscribe-modal" class="modal-overlay">
+    <div class="modal" style="max-width:480px;">
+      <div class="modal-header">
+        <h3 class="modal-title">订阅日历</h3>
+        <button class="modal-close" onclick="closeSubscribeModal()">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.9rem;color:var(--gray-600);margin-bottom:12px;">将以下链接添加到你的日历应用（iOS日历、Google日历等）：</p>
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <input type="text" id="subscribe-url" class="form-input" readonly style="flex:1;font-size:0.8rem;font-family:monospace;">
+          <button class="btn btn-primary btn-sm" onclick="copySubscribeUrl()">复制</button>
+        </div>
+        <p style="font-size:0.8rem;color:var(--gray-500);">此链接包含访问令牌，请勿分享给他人。如怀疑泄露，可点击下方重置。</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="resetSubscribeToken()" style="margin-right:auto;">重置链接</button>
+        <button class="btn btn-outline" onclick="closeSubscribeModal()">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast 通知容器 -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- 快捷键帮助弹窗 -->
+  <div id="shortcuts-modal" class="modal-overlay">
+    <div class="modal" style="max-width:400px;">
+      <div class="modal-header">
+        <h3 class="modal-title">键盘快捷键</h3>
+        <button class="modal-close" onclick="closeShortcutsModal()">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body" style="padding:16px 20px;">
+        <div class="shortcuts-grid">
+          <div class="shortcut-group">
+            <div class="shortcut-title">导航</div>
+            <div class="shortcut-item"><kbd>←</kbd> <span>上一期</span></div>
+            <div class="shortcut-item"><kbd>→</kbd> <span>下一期</span></div>
+            <div class="shortcut-item"><kbd>t</kbd> <span>回到今天</span></div>
+          </div>
+          <div class="shortcut-group">
+            <div class="shortcut-title">视图</div>
+            <div class="shortcut-item"><kbd>d</kbd> <span>日视图</span></div>
+            <div class="shortcut-item"><kbd>w</kbd> <span>周视图</span></div>
+            <div class="shortcut-item"><kbd>m</kbd> <span>月视图</span></div>
+          </div>
+          <div class="shortcut-group">
+            <div class="shortcut-title">操作</div>
+            <div class="shortcut-item"><kbd>c</kbd> <span>新建日程</span></div>
+            <div class="shortcut-item"><kbd>Enter</kbd> <span>保存</span></div>
+            <div class="shortcut-item"><kbd>Esc</kbd> <span>取消/关闭</span></div>
+          </div>
+          <div class="shortcut-group">
+            <div class="shortcut-title">帮助</div>
+            <div class="shortcut-item"><kbd>?</kbd> <span>显示帮助</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/auth.js"></script>
+  <script src="/js/calendar.js"></script>
+</body>
+</html>

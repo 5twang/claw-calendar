@@ -1,0 +1,23 @@
+node_modules/
+npm-debug.log*
+# 配置文件 (敏感信息，不推送)
+.env
+.env.production
+
+# 配置模板 (可以推送)
+# .env.example 已添加到仓库
+.DS_Store
+data/
+*.log
+coverage/
+test-events.html
+tests/
+
+# 敏感文档
+docs/
+ROADMAP.md
+前端功能测试报告*.md
+周视图时间轴说明.md
+TESTING.md
+server.log
+deploy.sh

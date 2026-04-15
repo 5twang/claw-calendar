@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>日程管理 - Claw-Calendar</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- 导航栏 -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="/dashboard.html" class="navbar-brand">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="16" y1="2" x2="16" y2="6"></line>
+          <line x1="8" y1="2" x2="8" y2="6"></line>
+          <line x1="3" y1="10" x2="21" y2="10"></line>
+        </svg>
+        <span>Claw-Calendar</span>
+      </a>
+      <button class="navbar-toggle" onclick="toggleNavbar()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+      <div class="navbar-nav" id="navbar-nav">
+        <a href="/dashboard.html" class="nav-link">控制台</a>
+        <a href="/calendar.html" class="nav-link">日历</a>
+        <a href="/apikeys.html" class="nav-link">API Keys</a>
+        <a href="/profile.html" class="nav-link">设置</a>
+        <button onclick="logout()" class="btn btn-sm btn-outline">退出</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- 主内容 -->
+  <main class="main-content">
+    <div class="container">
+      <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+          <div>
+            <h1 class="card-title">日程管理</h1>
+            <p class="card-subtitle">管理你的日程和提醒</p>
+          </div>
+          <button class="btn btn-primary" onclick="showCreateEventModal()">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+            </svg>
+            创建日程
+          </button>
+        </div>
+        
+        <div class="card-body">
+          <div id="event-message" class="alert hidden"></div>
+          
+          <!-- 筛选栏 -->
+          <div class="filter-bar" style="margin-bottom: 20px;">
+            <select id="calendar-filter" class="form-input" style="width: auto; min-width: 200px;" onchange="loadEvents()">
+              <option value="">所有日历</option>
+            </select>
+          </div>
+          
+          <div id="event-list" class="event-list">
+            <div class="loading">加载中...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 创建日程模态框 -->
+  <div class="modal" id="create-event-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">创建新日程</h3>
+        <button class="modal-close" onclick="closeCreateEventModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="event-calendar">选择日历 *</label>
+          <select id="event-calendar" class="form-input" required>
+            <option value="">请选择日历</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="event-title">日程标题 *</label>
+          <input type="text" id="event-title" class="form-input" placeholder="例如：团队会议、生日聚会" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="event-description">描述</label>
+          <textarea id="event-description" class="form-input" rows="2" placeholder="可选：添加详细描述"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="event-location">地点</label>
+          <input type="text" id="event-location" class="form-input" placeholder="可选：地点信息">
+        </div>
+        <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="form-group">
+            <label class="form-label" for="event-start-date">开始日期 *</label>
+            <input type="date" id="event-start-date" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="event-end-date">结束日期 *</label>
+            <input type="date" id="event-end-date" class="form-input" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-checkbox">
+            <input type="checkbox" id="event-all-day" checked onchange="toggleTimeInputs()">
+            <span>全天事件</span>
+          </label>
+        </div>
+        <div class="form-group" id="alarm-settings">
+          <label class="form-checkbox">
+            <input type="checkbox" id="event-alarm" checked>
+            <span>开启提醒</span>
+          </label>
+          <select id="event-alarm-minutes" class="form-input" style="margin-top: 8px; width: auto;">
+            <option value="0">开始时</option>
+            <option value="5">提前 5 分钟</option>
+            <option value="15" selected>提前 15 分钟</option>
+            <option value="30">提前 30 分钟</option>
+            <option value="60">提前 1 小时</option>
+            <option value="1440">提前 1 天</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeCreateEventModal()">取消</button>
+        <button class="btn btn-primary" onclick="createEvent()">创建</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/auth.js"></script>
+  <script src="/js/events.js"></script>
+</body>
+</html>
