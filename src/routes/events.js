@@ -278,6 +278,26 @@ router.put('/:eventId', authenticate, checkCalendarOwnership, asyncHandler(async
   });
 }));
 
+// 审计日志记录（内部函数）- 使用已有的api_logs表
+async function logEventAudit(req, action, eventId, details = {}) {
+  try {
+    await pool.query(
+      `INSERT INTO api_logs (user_id, calendar_id, action, ip_address, user_agent, created_at)
+       VALUES ($1, $2, $3, $4, $5, NOW())`,
+      [
+        req.userId || null,
+        req.params.calendarId || details.calendarId || null,
+        `[EVENT:${action}] ${eventId}`,
+        req.ip || null,
+        req.headers['user-agent'] || null
+      ]
+    );
+  } catch (err) {
+    // 审计日志失败不影响主流程，但应记录
+    console.error('审计日志记录失败:', err.message);
+  }
+}
+
 // 删除事件（返回完整数据用于撤销）
 router.delete('/:eventId', authenticate, checkCalendarOwnership, asyncHandler(async (req, res) => {
   // 检查权限
@@ -303,6 +323,12 @@ router.delete('/:eventId', authenticate, checkCalendarOwnership, asyncHandler(as
     'DELETE FROM events WHERE id = $1 AND calendar_id = $2',
     [req.params.eventId, req.params.calendarId]
   );
+
+  // 记录审计日志
+  await logEventAudit(req, 'DELETE_EVENT', req.params.eventId, {
+    calendarId: req.params.calendarId,
+    eventTitle: decryptedEvent.title
+  });
 
   res.json({
     success: true,
@@ -371,6 +397,12 @@ router.post('/:eventId/restore', authenticate, asyncHandler(async (req, res) => 
 
   // 解密返回给客户端
   const restoredEvent = decryptEventData(result.rows[0]);
+
+  // 记录审计日志
+  await logEventAudit(req, 'RESTORE_EVENT', req.params.eventId, {
+    calendarId,
+    eventTitle: title
+  });
 
   res.status(201).json({
     success: true,

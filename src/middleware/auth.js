@@ -22,8 +22,8 @@ function generateToken(user) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 }
 
-// 验证JWT中间件
-function authenticateToken(req, res, next) {
+// 验证JWT中间件 - 使用 async/await 确保认证流程一致
+async function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
@@ -31,40 +31,40 @@ function authenticateToken(req, res, next) {
     return next(errors.unauthorized('缺少访问令牌'));
   }
 
+  let decoded;
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-
-  // 检查会话是否有效（未在黑名单中）- 测试环境除外
-  if (process.env.NODE_ENV !== 'test') {
-    pool.query(
-      'SELECT id FROM user_sessions WHERE token_jti = $1 AND expires_at > NOW()',
-      [decoded.jti]
-    ).then(sessionResult => {
-      if (sessionResult.rows.length === 0) {
-        next(errors.unauthorized('会话已过期或无效', 'SESSION_EXPIRED'));
-      } else {
-        req.userId = decoded.userId;
-        req.userEmail = decoded.email;
-        req.tokenJti = decoded.jti;
-        next();
-      }
-    }).catch(err => next(err));
-  } else {
-    req.userId = decoded.userId;
-    req.userEmail = decoded.email;
-    req.tokenJti = decoded.jti;
-    next();
-  }
+    // jwt.verify 是同步的，但为了流程一致性使用 try/catch
+    decoded = jwt.verify(token, JWT_SECRET);
   } catch (err) {
-    // jwt.verify 会抛出特定错误
     if (err.name === 'TokenExpiredError') {
       return next(errors.unauthorized('令牌已过期，请重新登录', 'TOKEN_EXPIRED'));
     }
     if (err.name === 'JsonWebTokenError') {
       return next(errors.forbidden('无效的访问令牌', 'TOKEN_INVALID'));
     }
-    next(err);
+    return next(err);
   }
+
+  // 检查会话是否有效（未在黑名单中）- 测试环境除外
+  if (process.env.NODE_ENV !== 'test') {
+    try {
+      const sessionResult = await pool.query(
+        'SELECT id FROM user_sessions WHERE token_jti = $1 AND expires_at > NOW()',
+        [decoded.jti]
+      );
+      if (sessionResult.rows.length === 0) {
+        return next(errors.unauthorized('会话已过期或无效', 'SESSION_EXPIRED'));
+      }
+    } catch (err) {
+      return next(err);
+    }
+  }
+
+  // 设置用户信息并继续
+  req.userId = decoded.userId;
+  req.userEmail = decoded.email;
+  req.tokenJti = decoded.jti;
+  next();
 }
 
 // 验证API Key中间件（用户级：可访问该用户所有日历）

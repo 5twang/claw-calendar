@@ -27,20 +27,40 @@ class PostgresAdapter extends DatabaseAdapter {
     try {
       const { Pool } = require('pg');
       
+      // 连接池配置优化
       const poolConfig = {
         connectionString: this.config.url,
-        max: 50,
-        idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 5000,
+        // 连接池大小配置
+        max: parseInt(process.env.DB_POOL_MAX) || 20,  // 最大连接数（生产环境建议10-50）
+        min: parseInt(process.env.DB_POOL_MIN) || 2,    // 最小连接数
+        idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT) || 30000,  // 空闲超时
+        connectionTimeoutMillis: parseInt(process.env.DB_CONN_TIMEOUT) || 5000,  // 连接超时
+        // 连接命名（用于日志追踪）
+        log: (msg) => console.log('[DB Pool]', msg),
       };
 
+      // 生产环境启用 SSL
+      if (process.env.NODE_ENV === 'production') {
+        poolConfig.ssl = {
+          rejectUnauthorized: true,  // 必须验证证书
+          ca: process.env.DB_SSL_CA,      // CA 证书（可选）
+          cert: process.env.DB_SSL_CERT,  // 客户端证书（可选）
+          key: process.env.DB_SSL_KEY,   // 客户端私钥（可选）
+        };
+      }
+
       this.pool = new Pool(poolConfig);
-      
+
+      // 监听连接池错误
+      this.pool.on('error', (err) => {
+        console.error('[DB Pool] 意外错误:', err.message);
+      });
+
       // 测试连接
       const client = await this.pool.connect();
       client.release();
       this.connected = true;
-      
+
       console.log('[DB] PostgreSQL 连接成功');
     } catch (error) {
       console.error('[DB] PostgreSQL 连接失败:', error.message);

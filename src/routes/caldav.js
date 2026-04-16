@@ -18,6 +18,20 @@ const { DEFAULT_TIMEZONE } = require('../utils/constants');
 // 辅助函数
 // ============================================================
 
+/**
+ * XML 特殊字符转义
+ * 防止 XML 注入攻击
+ */
+function escapeXml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
 // 开发环境默认用户（仅测试环境可用）
 const DEV_CALDAV_USER = process.env.NODE_ENV === 'test' ? process.env.DEV_CALDAV_USER : null;
 
@@ -236,7 +250,7 @@ async function handlePrincipal(req, res) {
     <d:href>/principals/${user.id}/</d:href>
     <d:propstat>
       <d:prop>
-        <d:displayname>${user.email}</d:displayname>
+        <d:displayname>${escapeXml(user.email)}</d:displayname>
         <d:principal-URL>
           <d:href>/principals/${user.id}/</d:href>
         </d:principal-URL>
@@ -247,7 +261,7 @@ async function handlePrincipal(req, res) {
           <d:href>/principals/${user.id}/</d:href>
         </d:current-user-principal>
         <cal:calendar-user-address-set>
-          <d:href>mailto:${user.email}</d:href>
+          <d:href>mailto:${escapeXml(user.email)}</d:href>
         </cal:calendar-user-address-set>
         <d:supported-report-set>
           <d:supported-report>
@@ -298,8 +312,8 @@ async function handleDavRoot(req, res) {
           <d:collection/>
           <cal:calendar/>
         </d:resourcetype>
-        <d:displayname>${cal.name}</d:displayname>
-        <cal:calendar-description>${cal.name}</cal:calendar-description>
+        <d:displayname>${escapeXml(cal.name)}</d:displayname>
+        <cal:calendar-description>${escapeXml(cal.name)}</cal:calendar-description>
         <cal:supported-calendar-component-set>
           <cal:comp name="VEVENT"/>
         </cal:supported-calendar-component-set>
@@ -480,20 +494,30 @@ async function handleGetEvent(req, res) {
     dtend = `DTEND;TZID=${DEFAULT_TIMEZONE}:${endDate}T${endTime}`;
   }
 
+  // ICS 格式特殊字符转义（RFC 5545）
+  const icsEscape = (str) => {
+    if (!str) return '';
+    return String(str)
+      .replace(/\\/g, '\\\\')  // 反斜杠转义
+      .replace(/;/g, '\\;')     // 分号转义
+      .replace(/,/g, '\\,')    // 逗号转义
+      .replace(/\n/g, '\\n');  // 换行符转义
+  };
+
   const ics = `BEGIN:VCALENDAR
 VERSION:2.0
 PRODID:-//Claw Calendar//EN
 CALSCALE:GREGORIAN
 METHOD:PUBLISH
-X-WR-CALNAME:${calendarName}
+X-WR-CALNAME:${icsEscape(calendarName)}
 BEGIN:VEVENT
 UID:${eventId}
 DTSTAMP:${now}
 ${dtstart}
 ${dtend}
-SUMMARY:${event.title || ''}
-DESCRIPTION:${(event.description || '').replace(/\n/g, '\\n')}
-LOCATION:${event.location || ''}
+SUMMARY:${icsEscape(event.title || '')}
+DESCRIPTION:${icsEscape(event.description || '')}
+LOCATION:${icsEscape(event.location || '')}
 END:VEVENT
 END:VCALENDAR`;
 
@@ -535,11 +559,21 @@ async function handleReportEvents(req, res) {
   const now = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
   let vevents = '';
 
+  // ICS 格式特殊字符转义（RFC 5545）
+  const icsEscape = (str) => {
+    if (!str) return '';
+    return String(str)
+      .replace(/\\/g, '\\\\')
+      .replace(/;/g, '\\;')
+      .replace(/,/g, '\\,')
+      .replace(/\n/g, '\\n');
+  };
+
   for (const event of events) {
     const uid = event.id;
-    const summary = event.title || '';
-    const description = (event.description || '').replace(/\n/g, '\\n');
-    const location = event.location || '';
+    const summary = icsEscape(event.title || '');
+    const description = icsEscape(event.description || '');
+    const location = icsEscape(event.location || '');
 
     // 处理日期时间格式
     let dtstart, dtend;
@@ -568,7 +602,7 @@ VERSION:2.0
 PRODID:-//Claw Calendar//EN
 CALSCALE:GREGORIAN
 METHOD:PUBLISH
-X-WR-CALNAME:${calendarName}
+X-WR-CALNAME:${icsEscape(calendarName)}
 BEGIN:VEVENT
 UID:${uid}
 DTSTAMP:${now}

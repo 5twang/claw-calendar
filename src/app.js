@@ -34,7 +34,35 @@ if (process.env.NODE_ENV !== 'production') {
 setupSecurity(app);
 
 // ============ 基础中间件 ============
-app.use(cors());
+// CORS配置：限制允许的源
+const corsOptions = {
+  origin: function (origin, callback) {
+    // 允许的源列表
+    const allowedOrigins = [
+      process.env.APP_URL || 'http://localhost:3000',
+      'http://localhost:3000',
+      'https://claw-calendar.com'
+    ];
+    
+    // 如果origin为空（如同源请求）或在白名单中，允许访问
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      // 生产环境拒绝未知源
+      if (process.env.NODE_ENV === 'production') {
+        callback(new Error('不允许的 CORS 源'));
+      } else {
+        // 开发环境允许所有源
+        callback(null, true);
+      }
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key']
+};
+
+app.use(cors(corsOptions));
 app.use(bodyParser.json());
 app.use(logger);
 
