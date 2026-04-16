@@ -14,6 +14,21 @@ const caldavRouter = require('./routes/caldav');
 const { getCurrentTimestamp, formatDateForICal } = require('./utils/ical');
 const { DEFAULT_TIMEZONE } = require('./utils/constants');
 
+// ============ Swagger/OpenAPI 文档（仅开发环境）===========
+if (process.env.NODE_ENV !== 'production') {
+  try {
+    const swaggerUi = require('swagger-ui-express');
+    const { specs } = require('./config/swagger');
+    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
+      customCss: '.swagger-ui .topbar { display: none }',
+      customSiteTitle: 'Claw Calendar API 文档'
+    }));
+    console.log('📚 Swagger 文档已启用: http://localhost:3000/api-docs');
+  } catch (err) {
+    console.log('⚠️ Swagger 文档未安装 (npm install swagger-ui-express swagger-jsdoc)');
+  }
+}
+
 // ============ 安全中间件 ============
 setupSecurity(app);
 

@@ -85,7 +85,12 @@ JWT_SECRET=your-jwt-secret-key-here
 npm start
 ```
 
-服务启动后访问 http://localhost:3000
+启动后访问以下地址：
+
+| 地址 | 说明 |
+|------|------|
+| http://localhost:3000 | 前端界面 |
+| http://localhost:3000/api-docs | **API 文档** (Swagger/OpenAPI) |
 
 ### 4. 运行测试
 
@@ -298,6 +303,7 @@ docker-compose up -d
 - **邮件**: Nodemailer
 - **安全**: Helmet + Rate Limiting
 - **测试**: Jest (194 个测试用例，覆盖率 55%+)
+- **文档**: Swagger/OpenAPI (仅开发环境)
 - **标准**: iCalendar (RFC 5545) + CalDAV (RFC 4791)
 
 ---
