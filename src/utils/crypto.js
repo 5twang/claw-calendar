@@ -122,25 +122,16 @@ function encryptFields(data, fields) {
  */
 function decryptFields(data, fields) {
   if (!data || typeof data !== 'object') return data;
-  
+
   const decrypted = { ...data };
   const fieldsToDecrypt = fields || getEncryptedFields();
-  
+
   for (const field of fieldsToDecrypt) {
     if (decrypted[field]) {
-      try {
-        decrypted[field] = decrypt(decrypted[field]);
-        // 标记为已成功解密
-        decrypted[`${field}_decrypted`] = true;
-      } catch (err) {
-        // 解密失败，标记为异常
-        console.warn(`Field ${field} decryption failed:`, err.message);
-        decrypted[`${field}_corrupted`] = true;
-        decrypted[field] = '[数据异常]';
-      }
+      decrypted[field] = decrypt(decrypted[field]);
     }
   }
-  
+
   return decrypted;
 }
 

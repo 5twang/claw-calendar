@@ -327,21 +327,14 @@ function renderUpcomingEvents() {
     return;
   }
 
-  // 分离正常日程和异常日程
-  const normalEvents = upcoming.filter(e => !e.titleCorrupted);
-  const corruptedEvents = upcoming.filter(e => e.titleCorrupted);
-
-  // 按日期分组（仅正常日程）
+  // 按日期分组
   const groups = {};
-  normalEvents.forEach(ev => {
+  upcoming.forEach(ev => {
     if (!groups[ev.startDate]) groups[ev.startDate] = [];
     groups[ev.startDate].push(ev);
   });
 
-  let html = '';
-
-  // 正常日程
-  html += Object.keys(groups).sort().map(date => {
+  el.innerHTML = Object.keys(groups).sort().map(date => {
     const d = new Date(date + 'T00:00:00');
     const isToday = date === today;
     const label = isToday ? '今天' : d.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', weekday: 'short' });
@@ -365,28 +358,6 @@ function renderUpcomingEvents() {
         }).join('')}
       </div>
     `;
-  }).join('');
-
-  // 异常日程（显示为数据异常）
-  if (corruptedEvents.length > 0) {
-    html += `
-      <div class="upcoming-group">
-        <div class="upcoming-date" style="color: var(--danger);">⚠ 数据异常</div>
-        ${corruptedEvents.map(ev => `
-          <div class="upcoming-event" style="border-left-color: var(--danger); background: #fef2f2;">
-            <div class="upcoming-event-content">
-              <span class="upcoming-title" style="color: var(--danger);">[数据异常]</span>
-            </div>
-            <button class="btn-icon-xs danger" onclick="deleteEvent('${ev.calendarId}','${ev.id}')" title="删除">
-              <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
-            </button>
-          </div>
-        `).join('')}
-      </div>
-    `;
-  }
-
-  el.innerHTML = html;
   }).join('');
 }
 
@@ -651,8 +622,7 @@ function renderMonthView() {
 
   const grid = document.getElementById('month-grid');
   grid.innerHTML = cells.map(cell => {
-    // 过滤出正常事件，隐藏 corrupted 事件
-    const dayEvents = allEvents.filter(e => !e.titleCorrupted && e.startDate <= cell.date && e.endDate >= cell.date)
+    const dayEvents = allEvents.filter(e => e.startDate <= cell.date && e.endDate >= cell.date)
       .sort((a, b) => a.title.localeCompare(b.title));
     const isToday = cell.date === today;
     const dayNum = parseInt(cell.date.split('-')[2]);
@@ -721,9 +691,8 @@ function renderWeekView() {
     const dateStr = fmtDate(d);
     const isToday = dateStr === today;
 
-    // 找到当天的全天事件（排除 corrupted）
+    // 找到当天的全天事件
     const dayAllDayEvents = allEvents.filter(e => {
-      if (e.titleCorrupted) return false;
       if (e.startDate > dateStr || e.endDate < dateStr) return false;
       return !e.startTime; // 全天事件没有开始时间
     });
@@ -759,9 +728,8 @@ function renderWeekView() {
     const dateStr = fmtDate(d);
     dayEventMap[dateStr] = [];
 
-    // 找到当天所有带时间的事件（排除 corrupted）
+    // 找到当天所有带时间的事件
     const dayEvents = allEvents.filter(e => {
-      if (e.titleCorrupted) return false;
       if (e.startDate > dateStr || e.endDate < dateStr) return false;
       if (!e.startTime) return false; // 有开始时间
       return true;
@@ -881,9 +849,9 @@ function renderDayView() {
     document.getElementById('day-view-weekday').textContent += '（今天）';
   }
 
-  // 获取当天事件（排除 corrupted）
+  // 获取当天事件
   const dayEvents = allEvents
-    .filter(e => !e.titleCorrupted && e.startDate <= dateStr && e.endDate >= dateStr)
+    .filter(e => e.startDate <= dateStr && e.endDate >= dateStr)
     .sort((a, b) => a.title.localeCompare(b.title));
 
   const container = document.getElementById('day-events');
