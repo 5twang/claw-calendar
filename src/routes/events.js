@@ -120,7 +120,11 @@ router.get('/', authenticate, checkCalendarOwnership, asyncHandler(async (req, r
     isAllDay: event.is_all_day,
     alarmEnabled: event.alarm_enabled,
     alarmMinutes: event.alarm_minutes,
-    createdAt: formatDateTime(event.created_at)
+    createdAt: formatDateTime(event.created_at),
+    // 数据完整性标记
+    titleCorrupted: event.title_corrupted || false,
+    descriptionCorrupted: event.description_corrupted || false,
+    locationCorrupted: event.location_corrupted || false
   }));
 
   res.json({
@@ -161,7 +165,10 @@ router.get('/:eventId', authenticate, checkCalendarOwnership, asyncHandler(async
       isAllDay: event.is_all_day,
       alarmEnabled: event.alarm_enabled,
       alarmMinutes: event.alarm_minutes,
-      createdAt: formatDateTime(event.created_at)
+      createdAt: formatDateTime(event.created_at),
+      titleCorrupted: event.title_corrupted || false,
+      descriptionCorrupted: event.description_corrupted || false,
+      locationCorrupted: event.location_corrupted || false
     }
   });
 }));
@@ -307,7 +314,8 @@ router.delete('/:eventId', authenticate, checkCalendarOwnership, asyncHandler(as
       endTime: decryptedEvent.end_time,
       isAllDay: decryptedEvent.is_all_day,
       alarmEnabled: decryptedEvent.alarm_enabled,
-      alarmMinutes: decryptedEvent.alarm_minutes
+      alarmMinutes: decryptedEvent.alarm_minutes,
+      titleCorrupted: decryptedEvent.title_corrupted || false
     }
   });
 }));

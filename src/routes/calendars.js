@@ -169,7 +169,10 @@ router.get('/events/all', authenticate, asyncHandler(async (req, res) => {
       isAllDay: decrypted.is_all_day,
       alarmEnabled: decrypted.alarm_enabled,
       alarmMinutes: decrypted.alarm_minutes,
-      createdAt: formatDateTime(decrypted.created_at)
+      createdAt: formatDateTime(decrypted.created_at),
+      titleCorrupted: decrypted.title_corrupted || false,
+      descriptionCorrupted: decrypted.description_corrupted || false,
+      locationCorrupted: decrypted.location_corrupted || false
     };
   });
 

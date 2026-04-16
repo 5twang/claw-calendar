@@ -130,9 +130,13 @@ function decryptFields(data, fields) {
     if (decrypted[field]) {
       try {
         decrypted[field] = decrypt(decrypted[field]);
+        // 标记为已成功解密
+        decrypted[`${field}_decrypted`] = true;
       } catch (err) {
-        // 如果解密失败，可能是明文存储（兼容旧数据）
-        console.warn(`Field ${field} decryption failed, treating as plaintext`);
+        // 解密失败，标记为异常
+        console.warn(`Field ${field} decryption failed:`, err.message);
+        decrypted[`${field}_corrupted`] = true;
+        decrypted[field] = '[数据异常]';
       }
     }
   }
