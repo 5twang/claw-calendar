@@ -188,6 +188,13 @@ async function redirectIfLoggedIn() {
   return false;
 }
 
+// HTML 转义函数
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
 // 显示消息（兼容旧版，建议使用 Toast）
 function showMessage(elementId, message, type = 'error') {
   const element = document.getElementById(elementId);
@@ -205,8 +212,9 @@ function showMessage(elementId, message, type = 'error') {
         : '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>'
       }
     </svg>
-    <span>${message}</span>
+    <span></span>
   `;
+  element.querySelector('span').textContent = message;
   element.classList.remove('hidden');
 
   // 5秒后自动隐藏
@@ -229,8 +237,9 @@ function showMsg(msg, type = 'success') {
         : '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>'
       }
     </svg>
-    <span>${msg}</span>
+    <span></span>
   `;
+  toast.querySelector('span').textContent = msg;
 
   container.appendChild(toast);
 

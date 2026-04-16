@@ -6,6 +6,23 @@
 const { ValidationError, errors } = require('../utils/errors');
 
 /**
+ * 验证密码复杂度
+ * 要求：至少8位，包含数字和字母
+ */
+function validatePasswordComplexity(password) {
+  if (!password || password.length < 8) {
+    throw errors.badRequest('密码长度至少8位');
+  }
+  
+  const hasNumber = /[0-9]/.test(password);
+  const hasLetter = /[a-zA-Z]/.test(password);
+  
+  if (!hasNumber || !hasLetter) {
+    throw errors.badRequest('密码必须包含数字和字母');
+  }
+}
+
+/**
  * 验证注册输入
  */
 function validateRegisterInput({ email, password, name }) {
@@ -19,8 +36,12 @@ function validateRegisterInput({ email, password, name }) {
 
   if (!password) {
     validationErrors.password = '密码不能为空';
-  } else if (password.length < 8) {
-    validationErrors.password = '密码长度至少8位';
+  } else {
+    try {
+      validatePasswordComplexity(password);
+    } catch (e) {
+      validationErrors.password = e.message;
+    }
   }
 
   if (Object.keys(validationErrors).length > 0) {
@@ -50,7 +71,13 @@ function validatePasswordReset({ email, code, newPassword }) {
   if (!code) validationErrors.code = '验证码不能为空';
   else if (code.length !== 6) validationErrors.code = '验证码格式不正确（6位数字）';
   if (!newPassword) validationErrors.newPassword = '新密码不能为空';
-  else if (newPassword.length < 8) validationErrors.newPassword = '密码长度至少8位';
+  else {
+    try {
+      validatePasswordComplexity(newPassword);
+    } catch (e) {
+      validationErrors.newPassword = e.message;
+    }
+  }
 
   if (Object.keys(validationErrors).length > 0) {
     throw new ValidationError(validationErrors);
@@ -84,5 +111,6 @@ module.exports = {
   validateEmail,
   validatePasswordReset,
   validateLoginInput,
-  validatePasswordChange
+  validatePasswordChange,
+  validatePasswordComplexity
 };

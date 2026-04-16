@@ -156,35 +156,34 @@ router.get('/events/all', authenticate, asyncHandler(async (req, res) => {
     };
   });
 
-  // 获取所有事件（内存过滤）
+  // 获取用户所有日历的所有事件（SQL 直接过滤）
   const allEventsResult = await pool.query(
-    'SELECT * FROM events ORDER BY start_date ASC, start_time ASC'
+    'SELECT * FROM events WHERE calendar_id = ANY($1) ORDER BY start_date ASC, start_time ASC',
+    [calendarIds]
   );
 
-  const events = allEventsResult.rows
-    .filter(e => calendarIds.includes(e.calendar_id))
-    .map(e => {
-      // 解密事件数据
-      const decrypted = decryptEventData(e);
-      const cal = calendarMap[decrypted.calendar_id];
-      return {
-        id: decrypted.id,
-        calendarId: decrypted.calendar_id,
-        calendarName: cal ? cal.name : '',
-        calendarColor: cal ? cal.color : '#4f46e5',
-        title: decrypted.title,
-        description: decrypted.description,
-        location: decrypted.location,
-        startDate: formatDateForApi(decrypted.start_date),
-        endDate: formatDateForApi(decrypted.end_date),
-        startTime: decrypted.start_time,
-        endTime: decrypted.end_time,
-        isAllDay: decrypted.is_all_day,
-        alarmEnabled: decrypted.alarm_enabled,
-        alarmMinutes: decrypted.alarm_minutes,
-        createdAt: formatDateTime(decrypted.created_at)
-      };
-    });
+  const events = allEventsResult.rows.map(e => {
+    // 解密事件数据
+    const decrypted = decryptEventData(e);
+    const cal = calendarMap[decrypted.calendar_id];
+    return {
+      id: decrypted.id,
+      calendarId: decrypted.calendar_id,
+      calendarName: cal ? cal.name : '',
+      calendarColor: cal ? cal.color : '#4f46e5',
+      title: decrypted.title,
+      description: decrypted.description,
+      location: decrypted.location,
+      startDate: formatDateForApi(decrypted.start_date),
+      endDate: formatDateForApi(decrypted.end_date),
+      startTime: decrypted.start_time,
+      endTime: decrypted.end_time,
+      isAllDay: decrypted.is_all_day,
+      alarmEnabled: decrypted.alarm_enabled,
+      alarmMinutes: decrypted.alarm_minutes,
+      createdAt: formatDateTime(decrypted.created_at)
+    };
+  });
 
   res.json({ success: true, events });
 }));

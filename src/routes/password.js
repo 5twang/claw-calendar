@@ -9,7 +9,7 @@ const { hashPassword } = require('../utils/crypto');
 const { generateVerificationCode, sendVerificationEmail } = require('../utils/email');
 const { errors } = require('../utils/errors');
 const { asyncHandler } = require('../middleware/errorHandler');
-const { validateEmail, validatePasswordReset } = require('../middleware/authValidation');
+const { validateEmail, validatePasswordReset, validatePasswordComplexity } = require('../middleware/authValidation');
 
 // 请求重置密码
 router.post('/forgot-password', asyncHandler(async (req, res) => {
@@ -101,10 +101,14 @@ router.post('/reset-password', asyncHandler(async (req, res) => {
   }
   // 方式2：使用 token（JWT 方式）
   else if (token) {
+    // 验证 JWT_SECRET 环境变量已设置
+    if (!process.env.JWT_SECRET) {
+      throw errors.serverError('服务器配置错误');
+    }
     try {
       // 解码 token 获取用户 ID
       const jwt = require('jsonwebtoken');
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'claw-calendar-secret');
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
       userId = decoded.userId;
     } catch (err) {
       throw errors.badRequest('重置链接无效或已过期');
@@ -114,9 +118,15 @@ router.post('/reset-password', asyncHandler(async (req, res) => {
     throw errors.badRequest('请提供验证码或重置链接');
   }
 
-  // 验证新密码
-  if (!newPassword || newPassword.length < 8) {
+  // 验证新密码复杂度
+  if (!newPassword) {
+    throw errors.badRequest('新密码不能为空');
+  }
+  if (newPassword.length < 8) {
     throw errors.badRequest('密码长度至少8位');
+  }
+  if (!/[0-9]/.test(newPassword) || !/[a-zA-Z]/.test(newPassword)) {
+    throw errors.badRequest('密码必须包含数字和字母');
   }
 
   // 哈希新密码

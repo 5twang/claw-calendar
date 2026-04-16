@@ -29,9 +29,9 @@ class PostgresAdapter extends DatabaseAdapter {
       
       const poolConfig = {
         connectionString: this.config.url,
-        max: 10,
+        max: 50,
         idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 2000,
+        connectionTimeoutMillis: 5000,
       };
 
       this.pool = new Pool(poolConfig);

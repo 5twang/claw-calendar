@@ -83,6 +83,8 @@ CREATE INDEX IF NOT EXISTS idx_email_verifications_user ON email_verifications(u
 CREATE INDEX IF NOT EXISTS idx_calendars_user ON calendars(user_id);
 CREATE INDEX IF NOT EXISTS idx_events_calendar ON events(calendar_id);
 CREATE INDEX IF NOT EXISTS idx_events_dates ON events(start_date, end_date);
+-- 复合索引：加速日历事件查询
+CREATE INDEX IF NOT EXISTS idx_events_calendar_date ON events(calendar_id, start_date);
 CREATE INDEX IF NOT EXISTS idx_api_keys_user ON api_keys(user_id);
 CREATE INDEX IF NOT EXISTS idx_api_keys_hash ON api_keys(key_hash);
 CREATE INDEX IF NOT EXISTS idx_api_logs_calendar ON api_logs(calendar_id);
