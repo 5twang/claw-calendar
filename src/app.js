@@ -18,22 +18,9 @@ const { DEFAULT_TIMEZONE } = require('./utils/constants');
 if (process.env.NODE_ENV !== 'production') {
   try {
     const swaggerUi = require('swagger-ui-express');
-    const swaggerJsdoc = require('swagger-jsdoc');
-    
-    const swaggerSpec = {
-      definition: {
-        openapi: '3.0.0',
-        info: {
-          title: 'Claw Calendar API',
-          version: '1.0.0',
-          description: '面向开发者的日历 API 服务'
-        },
-        servers: [{ url: 'http://localhost:3000' }]
-      },
-      apis: []
-    };
+    const swaggerSpec = require('./config/swagger-spec');
 
-    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerJsdoc(swaggerSpec), {
+    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
       customCss: '.swagger-ui .topbar { display: none }',
       customSiteTitle: 'Claw Calendar API'
     }));
