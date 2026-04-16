@@ -87,6 +87,13 @@ npm start
 
 服务启动后访问 http://localhost:3000
 
+### 4. 运行测试
+
+```bash
+npm test          # 运行所有测试
+npm test -- --coverage  # 带覆盖率报告
+```
+
 ---
 
 ## API 文档
@@ -290,7 +297,8 @@ docker-compose up -d
 - **加密**: AES-256-GCM
 - **邮件**: Nodemailer
 - **安全**: Helmet + Rate Limiting
-- **标准**: iCalendar (RFC 5545)
+- **测试**: Jest (194 个测试用例，覆盖率 55%+)
+- **标准**: iCalendar (RFC 5545) + CalDAV (RFC 4791)
 
 ---
 
@@ -315,8 +323,13 @@ claw-calendar/
 │   │   ├── apiKeys.js      # API Key 管理
 │   │   └── caldav.js       # CalDAV 协议
 │   └── utils/              # 工具函数
+│       ├── constants.js    # 全局常量配置
+│       ├── crypto.js       # 加密工具
+│       ├── email.js       # 邮件工具
+│       ├── errors.js      # 错误定义
+│       └── ical.js        # iCal 解析工具
 ├── public/                 # 静态文件（前端页面）
-├── tests/                  # 测试用例
+├── tests/                  # 测试用例 (194 个)
 ├── data/                   # JSON 数据存储
 └── docker-compose.yml      # Docker 部署配置
 ```
