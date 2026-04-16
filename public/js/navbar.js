@@ -1,10 +1,24 @@
 /**
  * 共享导航栏组件
- * 通过 fetch 加载导航栏 HTML 并注入到页面
+ * 如果页面已内嵌导航栏则跳过，否则动态插入
  */
 async function loadNavbar() {
-  const currentPage = window.location.pathname.split('/').pop() || 'dashboard.html';
+  // 检查页面是否已内嵌导航栏（body 第一个子元素是 navbar 或 header）
+  const firstChild = document.body.firstElementChild;
+  const hasInlineNavbar = firstChild && (
+    firstChild.tagName === 'NAV' ||
+    firstChild.classList.contains('navbar') ||
+    firstChild.id === 'navbar-container' ||
+    (firstChild.tagName === 'DIV' && firstChild.querySelector('.navbar-nav'))
+  );
   
+  if (hasInlineNavbar) {
+    console.log('导航栏已内嵌，跳过动态插入');
+    return;
+  }
+  
+  const currentPage = window.location.pathname.split('/').pop() || 'dashboard.html';
+
   const navbarHTML = `
     <nav class="navbar">
       <div class="container">
@@ -35,9 +49,9 @@ async function loadNavbar() {
     </nav>
   `;
 
-  // 插入导航栏
+  // 插入导航栏和 toast 容器
   document.body.insertAdjacentHTML('afterbegin', `
-    <div id="global-message" class="global-message hidden"></div>
+    <div id="toast-container" class="toast-container"></div>
     ${navbarHTML}
   `);
 
