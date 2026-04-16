@@ -146,7 +146,8 @@
     if (!form || !messageDiv || !submitBtn) return;
 
     function showFormMessage(message, type = 'error') {
-      messageDiv.textContent = message;
+      const msg = typeof message === 'string' ? message : getErrMsg(message);
+      messageDiv.textContent = msg;
       messageDiv.className = 'alert alert-' + type;
       messageDiv.classList.remove('hidden');
 
@@ -234,18 +235,19 @@
 
     // 统一消息函数
     function showMessage(message, type) {
+      const msg = typeof message === 'string' ? message : getErrMsg(message);
       const messageDiv = document.getElementById('message');
       if (messageDiv) {
         const iconSvg = type === 'success'
           ? '<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>'
           : '<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>';
-        messageDiv.innerHTML = iconSvg + '<span>' + message + '</span>';
+        messageDiv.innerHTML = iconSvg + '<span>' + msg + '</span>';
         messageDiv.className = 'alert alert-' + type;
         messageDiv.classList.remove('hidden');
         return;
       }
       // 如果没有 message div，使用 Toast
-      showToast(message, type || 'error');
+      showToast(msg, type || 'error');
     }
 
     if (!email) {
@@ -364,6 +366,7 @@
     }
 
     function showError(message) {
+      const msg = typeof message === 'string' ? message : getErrMsg(message);
       const loading = document.getElementById('loading');
       const result = document.getElementById('result');
 
@@ -382,7 +385,7 @@
             '</div>';
         }
         if (titleEl) titleEl.textContent = '验证失败';
-        if (messageEl) messageEl.innerHTML = '<div class="error-message">' + message + '</div>';
+        if (messageEl) messageEl.innerHTML = '<div class="error-message">' + msg + '</div>';
         if (btnEl) {
           btnEl.textContent = '返回注册';
           btnEl.href = '/register.html';
@@ -465,10 +468,10 @@
             window.location.href = '/login.html';
           }, 1500);
         } else {
-          showMessage('message', data.error || '重置失败', 'error');
+          showMessage(data.error || '重置失败', 'error');
         }
       } catch (error) {
-        showMessage('message', '网络错误，请稍后重试', 'error');
+        showMessage('网络错误，请稍后重试', 'error');
       } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = '重置密码';

@@ -176,14 +176,21 @@ async function restoreEventApi(eventId, eventData) {
 let pendingUndo = null;
 let undoTimer = null;
 let undoTimeout = 5000; // 5秒内可撤销
+let undoToastEl = null;  // 保存当前撤销提示的 DOM 元素
 
 // 显示撤销提示
 function showUndoMessage(message, eventData, eventId, calendarId) {
-  // 清除之前的撤销状态
+  // 移除之前的撤销提示
+  if (undoToastEl) {
+    undoToastEl.classList.add('hide');
+    setTimeout(() => undoToastEl?.remove(), 300);
+    undoToastEl = null;
+  }
   if (undoTimer) {
     clearTimeout(undoTimer);
-    pendingUndo = null;
+    undoTimer = null;
   }
+  pendingUndo = null;
 
   // 保存待撤销的数据
   pendingUndo = { eventData, eventId, calendarId };
@@ -197,11 +204,13 @@ function showUndoMessage(message, eventData, eventId, calendarId) {
   toast.innerHTML = `${undoIcon}<span>${message}</span><a href="#" id="undo-btn" style="color: rgba(255,255,255,0.85); text-decoration: underline; font-weight: 600;">撤销</a>`;
 
   container.appendChild(toast);
+  undoToastEl = toast;  // 保存引用
 
   // 绑定撤销按钮事件
   const undoBtn = document.getElementById('undo-btn');
   if (undoBtn) {
-    undoBtn.onclick = async () => {
+    undoBtn.onclick = async (e) => {
+      e.preventDefault();
       if (pendingUndo) {
         undoBtn.textContent = '恢复中...';
         undoBtn.disabled = true;
@@ -210,18 +219,17 @@ function showUndoMessage(message, eventData, eventId, calendarId) {
 
         if (result.success) {
           loadEvents();
-          // 显示恢复成功提示
           showGlobalMessage('日程已恢复', 'success');
         } else {
-          showGlobalMessage(result.error?.message || result.error, 'error');
+          showGlobalMessage(getErrMsg(result.error) || '恢复失败', 'error');
         }
 
         pendingUndo = null;
+        undoToastEl = null;
         if (undoTimer) {
           clearTimeout(undoTimer);
           undoTimer = null;
         }
-        // 移除 toast
         toast.classList.add('hide');
         setTimeout(() => toast.remove(), 300);
       }
@@ -231,6 +239,7 @@ function showUndoMessage(message, eventData, eventId, calendarId) {
   // 5秒后自动隐藏
   undoTimer = setTimeout(() => {
     pendingUndo = null;
+    undoToastEl = null;
     undoTimer = null;
     toast.classList.add('hide');
     setTimeout(() => toast.remove(), 300);
@@ -362,7 +371,8 @@ async function loadEvents() {
   if (eventsResult.success && calendarsResult.success) {
     renderEventList(eventsResult.events, calendarsResult.calendars);
   } else {
-    showGlobalMessage((eventsResult.error?.message || eventsResult.error) || (calendarsResult.error?.message || calendarsResult.error), 'error');
+    const errMsg = getErrMsg(eventsResult.error) || getErrMsg(calendarsResult.error);
+    showGlobalMessage(errMsg || '加载失败', 'error');
   }
 }
 
@@ -425,6 +435,8 @@ async function createEvent() {
   const location = document.getElementById('event-location').value.trim();
   const startDate = document.getElementById('event-start-date').value;
   const endDate = document.getElementById('event-end-date').value;
+  const startTime = document.getElementById('event-start-time')?.value || '';
+  const endTime = document.getElementById('event-end-time')?.value || '';
   const isAllDay = document.getElementById('event-all-day').checked;
   const alarmEnabled = document.getElementById('event-alarm').checked;
   const alarmMinutes = parseInt(document.getElementById('event-alarm-minutes').value);
@@ -441,9 +453,19 @@ async function createEvent() {
     showGlobalMessage('请选择开始和结束日期', 'warning');
     return;
   }
+
+  // 日期校验
   if (startDate > endDate) {
     showGlobalMessage('结束日期不能早于开始日期', 'warning');
     return;
+  }
+
+  // 非全天事件：时间校验
+  if (!isAllDay && startTime && endTime) {
+    if (startDate === endDate && startTime >= endTime) {
+      showGlobalMessage('结束时间必须晚于开始时间', 'warning');
+      return;
+    }
   }
 
   // 显示加载状态
@@ -476,7 +498,7 @@ async function createEvent() {
     closeCreateEventModal();
     loadEvents();
   } else {
-    showGlobalMessage(result.error?.message || result.error, 'error');
+    showGlobalMessage(getErrMsg(result.error) || '创建失败', 'error');
   }
 }
 
@@ -487,7 +509,7 @@ function deleteEvent(calendarId, eventId) {
       showUndoMessage('日程已删除', result.deletedEvent, eventId, calendarId);
       loadEvents();
     } else {
-      showGlobalMessage(result.error?.message || result.error, 'error');
+      showGlobalMessage(getErrMsg(result.error) || '删除失败', 'error');
     }
   });
 }

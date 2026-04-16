@@ -16,11 +16,22 @@ router.post('/', authenticate, checkCalendarOwnership, asyncHandler(async (req, 
     throw errors.forbidden('无权向此日历添加事件');
   }
 
-  const { title, startDate, endDate, startTime, endTime, description, location, alarm, alarmMinutes } = req.body;
+  const { title, startDate, endDate, startTime, endTime, description, location, isAllDay, alarm, alarmMinutes } = req.body;
 
   if (!title || !startDate) {
     throw errors.badRequest('标题和开始日期不能为空');
   }
+
+  // 全天事件：结束日期默认为开始日期
+  // 非全天事件：结束日期必须 >= 开始日期
+  const finalEndDate = endDate || startDate;
+  if (!isAllDay && endDate && endDate < startDate) {
+    throw errors.badRequest('结束日期不能早于开始日期');
+  }
+
+  // 全天事件的 startTime 和 endTime 必须为空
+  const finalStartTime = isAllDay ? null : (startTime || null);
+  const finalEndTime = isAllDay ? null : (endTime || null);
 
   // 日期格式验证
   if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
@@ -35,8 +46,8 @@ router.post('/', authenticate, checkCalendarOwnership, asyncHandler(async (req, 
   });
 
   const result = await pool.query(
-    `INSERT INTO events (calendar_id, title, description, location, start_date, end_date, start_time, end_time, alarm_enabled, alarm_minutes)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    `INSERT INTO events (calendar_id, title, description, location, start_date, end_date, start_time, end_time, is_all_day, alarm_enabled, alarm_minutes)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      RETURNING *`,
     [
       calendarId,
@@ -44,9 +55,10 @@ router.post('/', authenticate, checkCalendarOwnership, asyncHandler(async (req, 
       encryptedData.description,
       encryptedData.location,
       startDate,
-      endDate || startDate,
-      startTime || null,
-      endTime || null,
+      finalEndDate,
+      finalStartTime,
+      finalEndTime,
+      isAllDay !== false, // 默认为 true（全天事件）
       alarm !== false,
       alarmMinutes || 15
     ]

@@ -54,7 +54,8 @@ async function verifyEmail() {
     if (data.success) {
       showVerifySuccess('邮箱验证成功！', '您的账户已激活，现在可以登录使用了。');
     } else {
-      showVerifyError(data.error || '验证失败');
+      const errMsg = typeof data.error === 'object' ? (data.error?.message || JSON.stringify(data.error)) : (data.error || '验证失败');
+      showVerifyError(errMsg);
     }
   } catch (error) {
     showVerifyError('网络错误，请稍后重试');
@@ -208,7 +209,8 @@ async function saveProfileName() {
       user.name = data.user.name;
       localStorage.setItem('user', JSON.stringify(user));
     } else {
-      showMsg(data.error || '更新失败', 'error');
+      const errMsg = typeof data.error === 'object' ? (data.error?.message || JSON.stringify(data.error)) : (data.error || '更新失败');
+      showMsg(errMsg, 'error');
     }
   } catch (error) {
     showMsg('网络错误，请稍后重试', 'error');
@@ -300,7 +302,8 @@ async function submitCreateApiKey() {
     showNewApiKey(result.key);
     renderApiKeyList();
   } else {
-    showMsg(result.error, 'error');
+    const errMsg = typeof result.error === 'object' ? (result.error?.message || JSON.stringify(result.error)) : (result.error || '操作失败');
+    showMsg(errMsg, 'error');
   }
 }
 

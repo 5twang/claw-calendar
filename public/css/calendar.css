@@ -519,6 +519,24 @@
   opacity: 0.9;
 }
 
+/* 跨天事件横幅 */
+.week-multi-day-event {
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.week-multi-day-event:hover {
+  opacity: 0.9;
+}
+
 /* 滚动容器：分离时间标签和滚动区域 */
 .week-scroll-container {
   flex: 1;

@@ -12,6 +12,7 @@ let editingEventId = null;
 // 待撤销的事件数据
 let pendingUndo = null;
 let undoTimer = null;
+let undoToastEl = null;  // 保存当前撤销提示的 DOM 元素
 
 // ─── 初始化 ────────────────────────────────────────────────────
 
@@ -237,7 +238,7 @@ async function createCalendar() {
       renderCalView();
       showMsg('日历已更新', 'success');
     } else {
-      showMsg(data.error || '更新失败', 'error');
+      showMsg(getErrorMsg(data.error) || '更新失败', 'error');
     }
   } else {
     // 创建模式
@@ -258,7 +259,7 @@ async function createCalendar() {
       renderCalView();
       showMsg('日历创建成功', 'success');
     } else {
-      showMsg(data.error || '创建失败', 'error');
+      showMsg(getErrorMsg(data.error) || '创建失败', 'error');
     }
   }
 }
@@ -452,7 +453,10 @@ async function saveEvent() {
     renderCalView();
     showMsg('日程创建成功', 'success');
   } else {
-    showMsg(data.error || '创建失败', 'error');
+    const errMsg = typeof data.error === 'object' 
+      ? (data.error?.message || JSON.stringify(data.error)) 
+      : (data.error || '创建失败');
+    showMsg(errMsg, 'error');
   }
 }
 
@@ -482,17 +486,26 @@ async function deleteEvent(calendarId, eventId) {
     showUndoMessage('日程已删除', data.deletedEvent, eventId, calendarId);
   } else {
     const d = await res.json();
-    showMsg(d.error || '删除失败', 'error');
+    const errMsg = typeof d.error === 'object' 
+      ? (d.error?.message || JSON.stringify(d.error)) 
+      : (d.error || '删除失败');
+    showMsg(errMsg, 'error');
   }
 }
 
 // 显示撤销消息
 function showUndoMessage(message, eventData, eventId, calendarId) {
-  // 清除之前的撤销状态
+  // 移除之前的撤销提示
+  if (undoToastEl) {
+    undoToastEl.classList.add('hide');
+    setTimeout(() => undoToastEl?.remove(), 300);
+    undoToastEl = null;
+  }
   if (undoTimer) {
     clearTimeout(undoTimer);
-    pendingUndo = null;
+    undoTimer = null;
   }
+  pendingUndo = null;
 
   // 保存待撤销的数据
   pendingUndo = { eventData, eventId, calendarId };
@@ -509,11 +522,13 @@ function showUndoMessage(message, eventData, eventId, calendarId) {
   toast.innerHTML = `${undoIcon}<span>${message}</span><a href="#" id="undo-btn" style="color: rgba(255,255,255,0.85); text-decoration: underline; font-weight: 600;">撤销</a>`;
 
   container.appendChild(toast);
+  undoToastEl = toast;  // 保存引用
 
   // 绑定撤销按钮事件
   const undoBtn = document.getElementById('undo-btn');
   if (undoBtn) {
-    undoBtn.onclick = async () => {
+    undoBtn.onclick = async (e) => {
+      e.preventDefault();
       if (pendingUndo) {
         undoBtn.textContent = '恢复中...';
         undoBtn.disabled = true;
@@ -526,22 +541,21 @@ function showUndoMessage(message, eventData, eventId, calendarId) {
 
         if (res.ok) {
           const data = await res.json();
-          // 使用后端返回的解密后的事件数据
           allEvents.push(data.event);
           renderUpcomingEvents();
           renderCalView();
           showMsg('已恢复', 'success');
         } else {
           const d = await res.json();
-          showMsg(d.error || '恢复失败', 'error');
+          showMsg(d.error?.message || d.error || '恢复失败', 'error');
         }
 
         pendingUndo = null;
+        undoToastEl = null;
         if (undoTimer) {
           clearTimeout(undoTimer);
           undoTimer = null;
         }
-        // 移除 toast
         toast.classList.add('hide');
         setTimeout(() => toast.remove(), 300);
       }
@@ -551,6 +565,7 @@ function showUndoMessage(message, eventData, eventId, calendarId) {
   // 5秒后自动隐藏
   undoTimer = setTimeout(() => {
     pendingUndo = null;
+    undoToastEl = null;
     undoTimer = null;
     toast.classList.add('hide');
     setTimeout(() => toast.remove(), 300);
@@ -621,25 +636,41 @@ function renderMonthView() {
   }
 
   const grid = document.getElementById('month-grid');
-  grid.innerHTML = cells.map(cell => {
+  grid.innerHTML = cells.map((cell, idx) => {
     const dayEvents = allEvents.filter(e => e.startDate <= cell.date && e.endDate >= cell.date)
       .sort((a, b) => a.title.localeCompare(b.title));
     const isToday = cell.date === today;
     const dayNum = parseInt(cell.date.split('-')[2]);
+
+    // 分离单天和多天事件
+    const singleDayEvents = [];
+    const multiDayEvents = [];
+    dayEvents.forEach(ev => {
+      if (ev.startDate === ev.endDate || (!ev.startTime && ev.isAllDay)) {
+        singleDayEvents.push(ev);
+      } else {
+        multiDayEvents.push(ev);
+      }
+    });
+
+    // 渲染事件芯片
+    const renderEventChip = (ev) => {
+      const cal = allCalendars.find(c => c.id === ev.calendarId);
+      const color = ev.calendarColor || (cal ? cal.color : '#4f46e5');
+      const timeLabel = ev.startTime ? `<span class="event-time-label">${ev.startTime.substring(0,5)}</span>` : '';
+      
+      return `<div class="month-event-chip" style="background:${color}20;color:${color};border-left:3px solid ${color};"
+                   onclick="event.stopPropagation();showEventDetail('${ev.id}')"
+                   title="${escapeHtml(ev.title)}">${escapeHtml(ev.title)}${timeLabel}</div>`;
+    };
 
     return `
       <div class="month-cell ${cell.inMonth ? '' : 'other-month'} ${isToday ? 'today' : ''}"
            onclick="handleDayClick('${cell.date}')">
         <div class="month-day-num ${isToday ? 'today-num' : ''}">${dayNum}</div>
         <div class="month-events">
-          ${dayEvents.slice(0, 3).map(ev => {
-            const cal = allCalendars.find(c => c.id === ev.calendarId);
-            const color = ev.calendarColor || (cal ? cal.color : '#4f46e5');
-            const timeLabel = ev.startTime ? `<span class="event-time-label">${ev.startTime.substring(0,5)}</span>` : '';
-            return `<div class="month-event-chip" style="background:${color}20;color:${color};border-left:3px solid ${color};"
-                         onclick="event.stopPropagation();showEventDetail('${ev.id}')"
-                         title="${escapeHtml(ev.title)}">${escapeHtml(ev.title)}${timeLabel}</div>`;
-          }).join('')}
+          ${multiDayEvents.slice(0, 3).map(ev => renderEventChip(ev)).join('')}
+          ${singleDayEvents.slice(0, 3 - Math.min(multiDayEvents.length, 3)).map(ev => renderEventChip(ev)).join('')}
           ${dayEvents.length > 3 ? `<div class="month-more">+${dayEvents.length - 3} 更多</div>` : ''}
         </div>
       </div>
@@ -687,19 +718,55 @@ function renderWeekView() {
 
   // 渲染全天事件行
   const allDayRow = document.getElementById('week-all-day-row');
+  
+  // 找出跨天事件
+  const weekStartStr = fmtDate(days[0]);
+  const weekEndStr = fmtDate(days[days.length - 1]);
+  
+  // 分离单天事件和跨天事件
+  const singleDayEvents = [];
+  const multiDayEvents = [];
+  
+  allEvents.forEach(e => {
+    if (e.startTime) return; // 跳过带时间的事件
+    if (e.startDate >= weekStartStr && e.endDate <= weekEndStr) {
+      // 事件完全在周范围内
+      if (e.startDate === e.endDate) {
+        singleDayEvents.push(e);
+      } else {
+        multiDayEvents.push(e);
+      }
+    } else if (e.startDate <= weekEndStr && e.endDate >= weekStartStr) {
+      // 事件跨越周边界
+      multiDayEvents.push(e);
+    }
+  });
+  
   const allDayCellsHtml = days.map(d => {
     const dateStr = fmtDate(d);
     const isToday = dateStr === today;
 
-    // 找到当天的全天事件
-    const dayAllDayEvents = allEvents.filter(e => {
-      if (e.startDate > dateStr || e.endDate < dateStr) return false;
-      return !e.startTime; // 全天事件没有开始时间
-    });
+    // 当天的单天全天事件
+    const daySingleEvents = singleDayEvents.filter(e => e.startDate === dateStr);
+
+    // 跨天事件在该天的显示
+    const dayMultiDayHtml = multiDayEvents.map(ev => {
+      const cal = allCalendars.find(c => c.id === ev.calendarId);
+      const color = ev.calendarColor || (cal ? cal.color : '#4f46e5');
+      
+      return `
+        <div class="week-multi-day-event" style="background:${color};color:white;"
+             onclick="event.stopPropagation();showEventDetail('${ev.id}')"
+             title="${escapeHtml(ev.title)}">
+          ${escapeHtml(ev.title)}
+        </div>
+      `;
+    }).join('');
 
     return `
       <div class="week-all-day-cell ${isToday ? 'today' : ''}" onclick="handleDayClick('${dateStr}')">
-        ${dayAllDayEvents.map(ev => {
+        ${dayMultiDayHtml}
+        ${daySingleEvents.map(ev => {
           const cal = allCalendars.find(c => c.id === ev.calendarId);
           const color = ev.calendarColor || (cal ? cal.color : '#4f46e5');
           return `
@@ -987,7 +1054,7 @@ async function deleteEventFromDetail(calendarId, eventId) {
     showUndoMessage('日程已删除', data.deletedEvent, eventId, calendarId);
   } else {
     const d = await res.json();
-    showMsg(d.error || '删除失败', 'error');
+    showMsg(getErrorMsg(d.error) || '删除失败', 'error');
   }
 }
 
@@ -1033,7 +1100,7 @@ async function showSubscribeModal(calendarId) {
       if (res.ok) {
         cal.subscribeToken = data.subscribeToken;
       } else {
-        showMsg(data.error || '生成订阅链接失败', 'error');
+        showMsg(getErrorMsg(data.error) || '生成订阅链接失败', 'error');
         return;
       }
     } catch (err) {
@@ -1077,7 +1144,7 @@ async function resetSubscribeToken() {
       document.getElementById('subscribe-url').value = url;
       showMsg('订阅链接已重置', 'success');
     } else {
-      showMsg(data.error || '重置失败', 'error');
+      showMsg(getErrorMsg(data.error) || '重置失败', 'error');
     }
   } catch (err) {
     showMsg('重置失败', 'error');

@@ -2,6 +2,18 @@
 
 const API_BASE_URL = '';
 
+// 安全提取错误信息
+function getErrMsg(error) {
+  if (error === null || error === undefined) return '';
+  if (typeof error === 'string') return error;
+  if (typeof error === 'object') {
+    if (error.message) return error.message;
+    if (error.error) return typeof error.error === 'string' ? error.error : JSON.stringify(error.error);
+    return JSON.stringify(error);
+  }
+  return String(error);
+}
+
 // 移动端导航栏切换
 function toggleNavbar() {
   const navbarNav = document.getElementById('navbar-nav');
@@ -76,10 +88,7 @@ async function login(email, password) {
       localStorage.setItem('user', JSON.stringify(data.user));
       return { success: true, user: data.user };
     } else {
-      // 提取错误信息（后端返回 { error: { message, code } }）
-      let errorMsg = (data.error && data.error.message) || data.error || '登录失败';
-      // 针对 429 错误（速率限制）保持原错误信息
-      return { success: false, error: errorMsg };
+      return { success: false, error: getErrMsg(data.error) || '登录失败' };
     }
   } catch (e) {
     console.error('登录请求失败:', e);
@@ -107,13 +116,11 @@ async function register(email, password, name) {
       localStorage.setItem('user', JSON.stringify(data.user));
       return { success: true, user: data.user };
     } else {
-      // 提取错误信息（后端返回 { error: { message, code } }）
-      let errorMsg = (data.error && data.error.message) || data.error || '注册失败';
+      let errorMsg = getErrMsg(data.error) || '注册失败';
       // 针对 409 错误添加更友好的提示
       if (response.status === 409) {
         errorMsg = '该邮箱已被注册，请直接登录或使用找回密码功能';
       }
-      // 针对 429 错误（速率限制）保持原错误信息
       return { success: false, error: errorMsg };
     }
   } catch (e) {
@@ -162,9 +169,7 @@ async function changePassword(currentPassword, newPassword) {
   if (response.ok) {
     return { success: true, message: data.message };
   } else {
-    // 提取错误信息（后端返回 { error: { message, code } }）
-    const errorMsg = (data.error && data.error.message) || data.error || '修改密码失败';
-    return { success: false, error: errorMsg };
+    return { success: false, error: getErrMsg(data.error) || '修改密码失败' };
   }
 }
 

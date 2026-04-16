@@ -279,9 +279,20 @@
     }
 
       // 显示 Toast 消息
+    function getErrMsg(error) {
+      if (error === null || error === undefined) return '';
+      if (typeof error === 'string') return error;
+      if (typeof error === 'object') {
+        if (error.message) return error.message;
+        if (error.error) return typeof error.error === 'string' ? error.error : JSON.stringify(error.error);
+        return JSON.stringify(error);
+      }
+      return String(error);
+    }
+    
     function showMessage(text, type = 'error') {
       const container = document.getElementById('toastContainer');
-      const message = typeof text === 'string' ? text : (text?.error || text?.message || JSON.stringify(text));
+      const message = typeof text === 'string' ? text : getErrMsg(text);
 
       const iconSvg = type === 'success'
         ? '<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>'
@@ -342,7 +353,7 @@
           // 清空邮箱输入
           emailInput.value = email;
         } else {
-          showMessage(data.error?.message || data.error || '发送失败，请稍后重试');
+          showMessage(data.error || '发送失败，请稍后重试');
         }
       } catch (err) {
         showMessage('网络错误，请稍后重试');
@@ -402,7 +413,7 @@
           currentStep = 3;
           updateSteps();
         } else {
-          showMessage(data.error?.message || data.error || '验证码验证失败');
+          showMessage(data.error || '验证码验证失败');
         }
       } catch (err) {
         showMessage('网络错误，请稍后重试');
@@ -450,7 +461,7 @@
           currentStep = 'success';
           updateSteps();
         } else {
-          showMessage(data.error?.message || data.error || '注册失败，请稍后重试');
+          showMessage(data.error || '注册失败，请稍后重试');
         }
       } catch (err) {
         showMessage('网络错误，请稍后重试');
@@ -478,7 +489,7 @@
           startCountdown();
           showMessage('验证码已重新发送', 'success');
         } else {
-          showMessage(data.error?.message || data.error || '发送失败，请稍后重试');
+          showMessage(data.error || '发送失败，请稍后重试');
           resendBtn.disabled = false;
         }
       } catch (err) {

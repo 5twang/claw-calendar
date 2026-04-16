@@ -82,6 +82,106 @@ describe('事件 CRUD 测试', () => {
 
       expect(res.status).toBe(400);
     });
+
+    test('应该正确设置全天事件（isAllDay=true）', async () => {
+      if (!testCalendarId) return;
+
+      const res = await request(app)
+        .post(`/api/calendars/${testCalendarId}/events`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          title: '全天会议',
+          startDate: '2026-04-20',
+          endDate: '2026-04-20',
+          isAllDay: true
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.event.isAllDay).toBe(true);
+      expect(res.body.event.startTime).toBeNull();
+      expect(res.body.event.endTime).toBeNull();
+    });
+
+    test('应该正确设置带时间事件（isAllDay=false）', async () => {
+      if (!testCalendarId) return;
+
+      const res = await request(app)
+        .post(`/api/calendars/${testCalendarId}/events`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          title: '下午会议',
+          startDate: '2026-04-20',
+          endDate: '2026-04-20',
+          startTime: '14:00',
+          endTime: '15:00',
+          isAllDay: false
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.event.isAllDay).toBe(false);
+      expect(res.body.event.startTime).toBe('14:00');
+      expect(res.body.event.endTime).toBe('15:00');
+    });
+
+    test('应该正确处理多天全天事件', async () => {
+      if (!testCalendarId) return;
+
+      const res = await request(app)
+        .post(`/api/calendars/${testCalendarId}/events`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          title: '展会活动',
+          startDate: '2026-04-20',
+          endDate: '2026-04-22',
+          isAllDay: true
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.event.isAllDay).toBe(true);
+      expect(res.body.event.startDate).toBe('2026-04-20');
+      expect(res.body.event.endDate).toBe('2026-04-22');
+      expect(res.body.event.startTime).toBeNull();
+    });
+
+    test('应该拒绝非全天事件结束日期早于开始日期', async () => {
+      if (!testCalendarId) return;
+
+      const res = await request(app)
+        .post(`/api/calendars/${testCalendarId}/events`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          title: '错误日期事件',
+          startDate: '2026-04-22',
+          endDate: '2026-04-20',
+          startTime: '14:00',
+          endTime: '15:00',
+          isAllDay: false
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('BAD_REQUEST');
+    });
+
+    test('应该正确处理全天事件的 startTime 和 endTime 为 null', async () => {
+      if (!testCalendarId) return;
+
+      const res = await request(app)
+        .post(`/api/calendars/${testCalendarId}/events`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          title: '全天事件不应有时间',
+          startDate: '2026-04-20',
+          endDate: '2026-04-21',
+          startTime: '10:00',  // 即使传了时间
+          endTime: '11:00',
+          isAllDay: true       // 全天为 true 时时间应被忽略
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.event.isAllDay).toBe(true);
+      expect(res.body.event.startTime).toBeNull();
+      expect(res.body.event.endTime).toBeNull();
+    });
   });
 
   describe('GET /api/calendars/:calendarId/events', () => {
