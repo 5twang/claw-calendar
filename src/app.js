@@ -15,11 +15,27 @@ const { getCurrentTimestamp, formatDateForICal } = require('./utils/ical');
 const { DEFAULT_TIMEZONE } = require('./utils/constants');
 
 // ============ Swagger/OpenAPI 文档（仅开发环境）===========
-// 使用静态 HTML + CDN，无需安装任何 npm 包
 if (process.env.NODE_ENV !== 'production') {
-  app.get('/api-docs', (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/api-docs.html'));
-  });
+  const swaggerUi = require('swagger-ui-express');
+  const swaggerJsdoc = require('swagger-jsdoc');
+  
+  const swaggerSpec = {
+    definition: {
+      openapi: '3.0.0',
+      info: {
+        title: 'Claw Calendar API',
+        version: '1.0.0',
+        description: '面向开发者的日历 API 服务'
+      },
+      servers: [{ url: 'http://localhost:3000' }]
+    },
+    apis: []
+  };
+
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerJsdoc(swaggerSpec), {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'Claw Calendar API'
+  }));
   console.log('📚 API 文档已启用: http://localhost:3000/api-docs');
 }
 
