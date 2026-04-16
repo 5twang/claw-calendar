@@ -5,26 +5,7 @@ const { authenticate, authenticateToken, checkCalendarOwnership } = require('../
 const { encryptEventData, decryptEventData, decryptEventList } = require('../config/security');
 const { errors } = require('../utils/errors');
 const { asyncHandler } = require('../middleware/errorHandler');
-
-// 日期格式化辅助函数：确保返回 YYYY-MM-DD 格式
-function formatDateForApi(dateValue) {
-  if (!dateValue) return null;
-  if (typeof dateValue === 'string') {
-    // 如果已经是 YYYY-MM-DD 格式，直接返回
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) return dateValue;
-    // 否则提取日期部分
-    return dateValue.split('T')[0];
-  }
-  // Date 对象或其他情况
-  return dateValue.toISOString().split('T')[0];
-}
-
-// 格式化完整时间戳为 ISO 字符串
-function formatDateTime(dateValue) {
-  if (!dateValue) return null;
-  if (dateValue instanceof Date) return dateValue.toISOString();
-  return new Date(dateValue).toISOString();
-}
+const { formatDateForApi, formatDateTime } = require('../utils/constants');
 
 // 创建事件
 router.post('/', authenticate, checkCalendarOwnership, asyncHandler(async (req, res) => {

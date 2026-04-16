@@ -10,13 +10,7 @@ const { authenticateToken } = require('../middleware/auth');
 const { errors } = require('../utils/errors');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { validatePasswordChange } = require('../middleware/authValidation');
-
-// 格式化日期为 ISO 字符串
-function formatDate(date) {
-  if (!date) return null;
-  if (date instanceof Date) return date.toISOString();
-  return new Date(date).toISOString();
-}
+const { formatDateTime } = require('../utils/constants');
 
 // 获取当前用户信息
 router.get('/me', authenticateToken, asyncHandler(async (req, res) => {
@@ -43,7 +37,7 @@ router.get('/me', authenticateToken, asyncHandler(async (req, res) => {
       id: user.id,
       email: user.email,
       name: user.name,
-      createdAt: formatDate(user.created_at),
+      createdAt: formatDateTime(user.created_at),
       calendarCount: parseInt(user.calendar_count)
     }
   });
@@ -116,7 +110,7 @@ router.put('/me', authenticateToken, asyncHandler(async (req, res) => {
       id: user.id,
       email: user.email,
       name: user.name,
-      createdAt: formatDate(user.created_at)
+      createdAt: formatDateTime(user.created_at)
     }
   });
 }));

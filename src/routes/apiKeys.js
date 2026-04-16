@@ -5,13 +5,7 @@ const { authenticateToken } = require('../middleware/auth');
 const { generateApiKey } = require('../utils/crypto');
 const { errors } = require('../utils/errors');
 const { asyncHandler } = require('../middleware/errorHandler');
-
-// 格式化日期
-function formatDate(date) {
-  if (!date) return null;
-  if (date instanceof Date) return date.toISOString();
-  return new Date(date).toISOString();
-}
+const { formatDateTime } = require('../utils/constants');
 
 // 获取 API Key 前缀（用于展示）
 function getKeyPrefix(apiKey) {
@@ -25,10 +19,10 @@ function formatApiKey(key) {
     id: key.id,
     name: key.name,
     prefix: key.prefix,
-    lastUsedAt: formatDate(key.last_used_at),
-    expiresAt: formatDate(key.expires_at),
+    lastUsedAt: formatDateTime(key.last_used_at),
+    expiresAt: formatDateTime(key.expires_at),
     isActive: key.is_active,
-    createdAt: formatDate(key.created_at)
+    createdAt: formatDateTime(key.created_at)
   };
 }
 

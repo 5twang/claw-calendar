@@ -6,23 +6,7 @@ const { encryptCalendarData, decryptCalendarData, decryptCalendarList, decryptEv
 const { generateApiKey } = require('../utils/crypto');
 const { errors } = require('../utils/errors');
 const { asyncHandler } = require('../middleware/errorHandler');
-
-// 日期格式化辅助函数：确保返回 YYYY-MM-DD 格式
-function formatDateForApi(dateValue) {
-  if (!dateValue) return null;
-  if (typeof dateValue === 'string') {
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) return dateValue;
-    return dateValue.split('T')[0];
-  }
-  return dateValue.toISOString().split('T')[0];
-}
-
-// 格式化完整时间戳为 ISO 字符串
-function formatDateTime(dateValue) {
-  if (!dateValue) return null;
-  if (dateValue instanceof Date) return dateValue.toISOString();
-  return new Date(dateValue).toISOString();
-}
+const { DEFAULT_CALENDAR_COLOR, validateColor, formatDateForApi, formatDateTime } = require('../utils/constants');
 
 // 创建日历
 router.post('/', authenticate, asyncHandler(async (req, res) => {
@@ -41,8 +25,8 @@ router.post('/', authenticate, asyncHandler(async (req, res) => {
     description: description || ''
   });
 
-  // 验证颜色格式，默认紫色
-  const validColor = /^#[0-9A-Fa-f]{6}$/.test(color) ? color : '#4f46e5';
+  // 验证颜色格式
+  const validColor = validateColor(color);
 
   const result = await pool.query(
     `INSERT INTO calendars (user_id, name, description, color, is_public, subscribe_token)
@@ -91,7 +75,7 @@ router.get('/', authenticate, asyncHandler(async (req, res) => {
     id: cal.id,
     name: cal.name,
     description: cal.description,
-    color: result.rows.find(r => r.id === cal.id)?.color || '#4f46e5',
+    color: result.rows.find(r => r.id === cal.id)?.color || DEFAULT_CALENDAR_COLOR,
     isPublic: cal.is_public,
     subscribeToken: cal.subscribe_token,
     eventCount: parseInt(cal.event_count),
@@ -152,7 +136,7 @@ router.get('/events/all', authenticate, asyncHandler(async (req, res) => {
   decryptedCals.forEach(c => {
     calendarMap[c.id] = {
       name: c.name,
-      color: calResult.rows.find(r => r.id === c.id)?.color || '#4f46e5'
+      color: calResult.rows.find(r => r.id === c.id)?.color || DEFAULT_CALENDAR_COLOR
     };
   });
 
@@ -170,7 +154,7 @@ router.get('/events/all', authenticate, asyncHandler(async (req, res) => {
       id: decrypted.id,
       calendarId: decrypted.calendar_id,
       calendarName: cal ? cal.name : '',
-      calendarColor: cal ? cal.color : '#4f46e5',
+      calendarColor: cal ? cal.color : DEFAULT_CALENDAR_COLOR,
       title: decrypted.title,
       description: decrypted.description,
       location: decrypted.location,
@@ -225,7 +209,7 @@ router.put('/:id', authenticateToken, checkCalendarOwnership, asyncHandler(async
 
   // 颜色验证
   if (color !== undefined) {
-    const validColor = /^#[0-9A-Fa-f]{6}$/.test(color) ? color : '#4f46e5';
+    const validColor = validateColor(color);
     updates.push(`color = $${paramIndex++}`);
     values.push(validColor);
   }

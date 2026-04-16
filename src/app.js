@@ -12,6 +12,7 @@ const { logger } = require('./middleware/logger');
 const { decryptCalendarData, verifyApiKey } = require('./config/security');
 const caldavRouter = require('./routes/caldav');
 const { getCurrentTimestamp, formatDateForICal } = require('./utils/ical');
+const { DEFAULT_TIMEZONE } = require('./utils/constants');
 
 // ============ 安全中间件 ============
 setupSecurity(app);
@@ -106,7 +107,7 @@ function generateICS(calendar, events) {
     'METHOD:PUBLISH',
     `X-WR-CALNAME:${calendar.name}`,
     `X-WR-CALDESC:${calendar.description || ''}`,
-    'X-WR-TIMEZONE:Asia/Shanghai',
+    `X-WR-TIMEZONE:${DEFAULT_TIMEZONE}`,
   ];
 
   for (const event of events) {

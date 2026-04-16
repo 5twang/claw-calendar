@@ -12,6 +12,7 @@ const router = express.Router();
 const { asyncHandler } = require('../middleware/errorHandler');
 const pool = require('../config/database');
 const { decryptCalendarData, decryptEventList, decryptEventData, encryptEventData } = require('../config/security');
+const { DEFAULT_TIMEZONE } = require('../utils/constants');
 
 // ============================================================
 // 辅助函数
@@ -475,8 +476,8 @@ async function handleGetEvent(req, res) {
     const startTime = event.start_time ? event.start_time.replace(/:/g, '') : '000000';
     const endDate = event.end_date ? event.end_date.replace(/-/g, '') : startDate;
     const endTime = event.end_time ? event.end_time.replace(/:/g, '') : startTime;
-    dtstart = `DTSTART;TZID=Asia/Shanghai:${startDate}T${startTime}`;
-    dtend = `DTEND;TZID=Asia/Shanghai:${endDate}T${endTime}`;
+    dtstart = `DTSTART;TZID=${DEFAULT_TIMEZONE}:${startDate}T${startTime}`;
+    dtend = `DTEND;TZID=${DEFAULT_TIMEZONE}:${endDate}T${endTime}`;
   }
 
   const ics = `BEGIN:VCALENDAR
@@ -552,8 +553,8 @@ async function handleReportEvents(req, res) {
       const startTime = event.start_time ? event.start_time.replace(/:/g, '') : '000000';
       const endDate = event.end_date ? event.end_date.replace(/-/g, '') : startDate;
       const endTime = event.end_time ? event.end_time.replace(/:/g, '') : startTime;
-      dtstart = `DTSTART;TZID=Asia/Shanghai:${startDate}T${startTime}`;
-      dtend = `DTEND;TZID=Asia/Shanghai:${endDate}T${endTime}`;
+      dtstart = `DTSTART;TZID=${DEFAULT_TIMEZONE}:${startDate}T${startTime}`;
+      dtend = `DTEND;TZID=${DEFAULT_TIMEZONE}:${endDate}T${endTime}`;
     }
 
     vevents += `

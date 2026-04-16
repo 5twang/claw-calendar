@@ -11,7 +11,6 @@ data/
 *.log
 coverage/
 test-events.html
-tests/
 
 # 敏感文档
 docs/

@@ -382,7 +382,7 @@ body {
 /* Toast 通知 - 页面顶部居中 */
 .toast-container {
   position: fixed;
-  top: 70px;
+  top: 80px;
   left: 0;
   right: 0;
   margin: 0 auto;
