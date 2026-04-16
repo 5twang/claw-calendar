@@ -117,7 +117,7 @@
                 required: true,
                 content: { 'application/json': {
                   schema: { type: 'object', required: ['email', 'password'],
-                    properties: { email: { type: 'string', format: 'email' }, password: { type: 'string', minLength: 8 } }
+                    properties: { email: { type: 'string', format: 'email' }, password: { type: 'string', minLength: 8 } }}
                   }
                 }
               },
@@ -131,7 +131,7 @@
                 required: true,
                 content: { 'application/json': {
                   schema: { type: 'object', required: ['email', 'password'],
-                    properties: { email: { type: 'string', format: 'email' }, password: { type: 'string' } }
+                    properties: { email: { type: 'string', format: 'email' }, password: { type: 'string' } }}
                   }
                 }
               },
@@ -141,7 +141,7 @@
           '/api/calendars': {
             get: {
               tags: ['日历'], summary: '获取用户所有日历', security: [{ bearerAuth: [] }],
-              responses: { 200: { description: '日历列表', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Calendar' } } } } } }
+              responses: { 200: { description: '日历列表', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Calendar' } } } } } } }
             },
             post: {
               tags: ['日历'], summary: '创建日历', security: [{ bearerAuth: [] }],
@@ -190,7 +190,7 @@
                       title: { type: 'string' }, startDate: { type: 'string', format: 'date' },
                       endDate: { type: 'string', format: 'date' }, allDay: { type: 'boolean' },
                       description: { type: 'string' }, location: { type: 'string' }
-                    }
+                    }}
                   }
                 }
               },
@@ -208,7 +208,7 @@
                 required: true,
                 content: { 'application/json': {
                   schema: { type: 'object', required: ['name'],
-                    properties: { name: { type: 'string' }, expiresInDays: { type: 'integer' } }
+                    properties: { name: { type: 'string' }, expiresInDays: { type: 'integer' } }}
                   }
                 }
               },
