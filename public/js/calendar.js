@@ -5,9 +5,11 @@
 let calViewMode = 'month';     // 'month' | 'week' | 'day'
 let currentDate = new Date();  // 当前视图锚点日期
 let allCalendars = [];         // 所有日历
+let filteredCalendars = [];    // 过滤后的日历
 let allEvents = [];            // 所有事件
 let selectedCalColor = '#4f46e5';
 let editingEventId = null;
+let selectedCalendarIds = new Set(); // 批量选择的日历
 
 // 待撤销的事件数据
 let pendingUndo = null;
@@ -169,12 +171,21 @@ async function loadCalendarSidebar() {
 function renderCalendarSidebar() {
   const el = document.getElementById('calendar-list-sidebar');
   if (!el) return;
-  if (allCalendars.length === 0) {
+  
+  // 使用过滤后的日历列表，如果没有则使用全部
+  const displayCalendars = filteredCalendars.length > 0 || document.getElementById('cal-search')?.value 
+    ? filteredCalendars 
+    : allCalendars;
+  
+  if (displayCalendars.length === 0) {
     el.innerHTML = '<div class="sidebar-empty">暂无日历，点击 + 新建</div>';
     return;
   }
-  el.innerHTML = allCalendars.map(c => `
-    <div class="sidebar-cal-item">
+  el.innerHTML = displayCalendars.map(c => {
+    const isSelected = selectedCalendarIds.has(c.id);
+    return `
+    <div class="sidebar-cal-item ${isSelected ? 'selected' : ''}">
+      <input type="checkbox" class="cal-checkbox" ${isSelected ? 'checked' : ''} onchange="toggleCalSelection('${c.id}', this.checked)" title="选择">
       <span class="cal-dot" style="background:${c.color || '#4f46e5'}"></span>
       <span class="cal-label" title="${escapeHtml(c.name)}">${escapeHtml(c.name)}</span>
       <div class="cal-item-actions">
@@ -189,7 +200,7 @@ function renderCalendarSidebar() {
         </button>
       </div>
     </div>
-  `).join('');
+  `}).join('');
 }
 
 function populateCalendarSelect() {
@@ -1165,3 +1176,88 @@ function calculateEventPositions(events) {
 
 function pad(n) { return String(n).padStart(2, '0'); }
 function fmtDate(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
+
+// ─── 日历搜索 ────────────────────────────────────────────────
+
+function filterCalendars() {
+  const searchTerm = document.getElementById('cal-search')?.value.toLowerCase().trim() || '';
+  
+  if (!searchTerm) {
+    filteredCalendars = [];
+  } else {
+    filteredCalendars = allCalendars.filter(c => 
+      c.name.toLowerCase().includes(searchTerm) ||
+      (c.description && c.description.toLowerCase().includes(searchTerm))
+    );
+  }
+  
+  renderCalendarSidebar();
+}
+
+// ─── 批量选择 ────────────────────────────────────────────────
+
+function toggleCalSelection(calendarId, checked) {
+  if (checked) {
+    selectedCalendarIds.add(calendarId);
+  } else {
+    selectedCalendarIds.delete(calendarId);
+  }
+  updateCalBatchActions();
+}
+
+function updateCalBatchActions() {
+  const batchActions = document.getElementById('cal-batch-actions');
+  const selectedCount = document.getElementById('cal-selected-count');
+  
+  if (selectedCalendarIds.size > 0) {
+    batchActions?.classList.remove('hidden');
+    if (selectedCount) selectedCount.textContent = `已选 ${selectedCalendarIds.size} 个`;
+  } else {
+    batchActions?.classList.add('hidden');
+  }
+}
+
+function clearCalSelection() {
+  selectedCalendarIds.clear();
+  updateCalBatchActions();
+  renderCalendarSidebar();
+}
+
+async function deleteSelectedCalendars() {
+  if (selectedCalendarIds.size === 0) return;
+  
+  const selectedNames = allCalendars
+    .filter(c => selectedCalendarIds.has(c.id))
+    .map(c => c.name);
+  
+  if (!confirm(`确定删除以下 ${selectedCalendarIds.size} 个日历？\n\n${selectedNames.join('\n')}\n\n此操作不可恢复，日历中的所有日程也将被删除。`)) {
+    return;
+  }
+  
+  let failedCount = 0;
+  for (const calendarId of selectedCalendarIds) {
+    const res = await apiFetch(`/api/calendars/${calendarId}`, { method: 'DELETE' });
+    if (!res.ok) failedCount++;
+    else {
+      // 从本地数据移除
+      allCalendars = allCalendars.filter(c => c.id !== calendarId);
+      allEvents = allEvents.filter(e => e.calendarId !== calendarId);
+    }
+  }
+  
+  selectedCalendarIds.clear();
+  updateCalBatchActions();
+  filteredCalendars = [];
+  if (document.getElementById('cal-search')) document.getElementById('cal-search').value = '';
+  
+  renderCalendarSidebar();
+  populateCalendarSelect();
+  renderCalView();
+  renderUpcomingEvents();
+  
+  if (failedCount === 0) {
+    showMsg('已删除', 'success');
+  } else {
+    showMsg(`${selectedCalendarIds.size - failedCount} 个删除成功，${failedCount} 个失败`, 'error');
+  }
+}

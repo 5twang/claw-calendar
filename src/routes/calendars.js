@@ -91,6 +91,10 @@ router.get('/', authenticate, asyncHandler(async (req, res) => {
 
 // 获取单个日历详情
 router.get('/:id', authenticateToken, checkCalendarOwnership, asyncHandler(async (req, res) => {
+  // 排除 .ics 订阅请求
+  if (req.params.id.endsWith('.ics')) {
+    return res.status(404).json({ success: false, error: 'Calendar not found' });
+  }
   const result = await pool.query(
     `SELECT c.id, c.name, c.description, c.color, c.is_public, c.subscribe_token, c.created_at,
             COUNT(e.id) as event_count
