@@ -1,5 +1,7 @@
 node_modules/
 npm-debug.log*
+# AI 助手工作目录
+.workbuddy/
 # 配置文件 (敏感信息，不推送)
 .env
 .env.production
