@@ -8,6 +8,7 @@ const app = express();
 const pool = require('./config/database');
 const { setupSecurity } = require('./config/security-middleware');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
+const { logger } = require('./middleware/logger');
 const { decryptCalendarData, verifyApiKey } = require('./config/security');
 const caldavRouter = require('./routes/caldav');
 const { getCurrentTimestamp, formatDateForICal } = require('./utils/ical');
@@ -18,6 +19,7 @@ setupSecurity(app);
 // ============ 基础中间件 ============
 app.use(cors());
 app.use(bodyParser.json());
+app.use(logger);
 
 // 静态文件服务（前端界面）
 app.use(express.static(path.join(__dirname, '../public')));

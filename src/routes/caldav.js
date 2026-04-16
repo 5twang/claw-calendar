@@ -17,16 +17,19 @@ const { decryptCalendarData, decryptEventList, decryptEventData, encryptEventDat
 // 辅助函数
 // ============================================================
 
+// 开发环境默认用户（可通过环境变量配置）
+const DEV_CALDAV_USER = process.env.DEV_CALDAV_USER || null;
+
 /**
- * CalDAV Basic Auth 验证（开发环境临时禁用）
- * macOS Calendar 在 localhost HTTP 上不发送 Basic Auth 凭据
- * 因此在开发环境中使用硬编码用户进行调试
+ * CalDAV Basic Auth 验证
+ * 开发环境可使用 DEV_CALDAV_USER 环境变量指定默认用户
  */
 async function caldavAuthenticate(req) {
-  // 开发环境：使用硬编码用户 2431992@qq.com
-  if (process.env.NODE_ENV !== 'production') {
+  // 开发环境：使用环境变量指定的默认用户
+  if (process.env.NODE_ENV !== 'production' && DEV_CALDAV_USER) {
     const userResult = await pool.query(
-      "SELECT id, email FROM users WHERE email = '2431992@qq.com' AND is_active = true"
+      'SELECT id, email FROM users WHERE email = $1 AND is_active = true',
+      [DEV_CALDAV_USER]
     );
     if (userResult.rows.length > 0) {
       return userResult.rows[0];

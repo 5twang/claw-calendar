@@ -285,25 +285,118 @@ router.put('/:eventId', authenticate, checkCalendarOwnership, asyncHandler(async
   });
 }));
 
-// 删除事件
+// 删除事件（返回完整数据用于撤销）
 router.delete('/:eventId', authenticate, checkCalendarOwnership, asyncHandler(async (req, res) => {
   // 检查权限
   if (req.authMethod !== 'apikey' && req.calendarOwnerId !== req.userId) {
     throw errors.forbidden('无权删除此事件');
   }
 
-  const result = await pool.query(
-    'DELETE FROM events WHERE id = $1 AND calendar_id = $2 RETURNING id',
+  // 先获取完整事件数据
+  const eventResult = await pool.query(
+    'SELECT * FROM events WHERE id = $1 AND calendar_id = $2',
     [req.params.eventId, req.params.calendarId]
   );
 
-  if (result.rows.length === 0) {
+  if (eventResult.rows.length === 0) {
     throw errors.notFound('事件不存在');
   }
 
+  // 解密事件数据
+  const decryptedEvent = decryptEventData(eventResult.rows[0]);
+
+  // 执行删除
+  await pool.query(
+    'DELETE FROM events WHERE id = $1 AND calendar_id = $2',
+    [req.params.eventId, req.params.calendarId]
+  );
+
   res.json({
     success: true,
-    message: '事件已删除'
+    message: '事件已删除',
+    deletedEvent: {
+      id: decryptedEvent.id,
+      calendarId: req.params.calendarId,
+      title: decryptedEvent.title,
+      description: decryptedEvent.description,
+      location: decryptedEvent.location,
+      startDate: formatDateForApi(decryptedEvent.start_date),
+      endDate: formatDateForApi(decryptedEvent.end_date),
+      startTime: decryptedEvent.start_time,
+      endTime: decryptedEvent.end_time,
+      isAllDay: decryptedEvent.is_all_day,
+      alarmEnabled: decryptedEvent.alarm_enabled,
+      alarmMinutes: decryptedEvent.alarm_minutes
+    }
+  });
+}));
+
+// 恢复已删除的事件
+router.post('/:eventId/restore', authenticate, asyncHandler(async (req, res) => {
+  const { calendarId, title, description, location, startDate, endDate, startTime, endTime, alarmEnabled, alarmMinutes } = req.body;
+
+  if (!calendarId || !title || !startDate) {
+    throw errors.badRequest('缺少恢复事件所需的必要字段');
+  }
+
+  // 验证用户对日历的所有权
+  const calendarResult = await pool.query(
+    'SELECT id FROM calendars WHERE id = $1 AND user_id = $2',
+    [calendarId, req.userId]
+  );
+
+  if (calendarResult.rows.length === 0) {
+    throw errors.forbidden('无权向此日历恢复事件');
+  }
+
+  // 重新加密敏感字段
+  const encryptedData = encryptEventData({
+    title,
+    description: description || '',
+    location: location || ''
+  });
+
+  // 重新插入事件
+  const result = await pool.query(
+    `INSERT INTO events (id, calendar_id, title, description, location, start_date, end_date, start_time, end_time, alarm_enabled, alarm_minutes)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+     RETURNING *`,
+    [
+      req.params.eventId,
+      calendarId,
+      encryptedData.title,
+      encryptedData.description,
+      encryptedData.location,
+      startDate,
+      endDate || startDate,
+      startTime || null,
+      endTime || null,
+      alarmEnabled !== false,
+      alarmMinutes || 15
+    ]
+  );
+
+  // 解密返回给客户端
+  const restoredEvent = decryptEventData(result.rows[0]);
+
+  res.status(201).json({
+    success: true,
+    message: '事件已恢复',
+    event: {
+      id: restoredEvent.id,
+      calendarId: calendarId,
+      title: restoredEvent.title,
+      description: restoredEvent.description,
+      location: restoredEvent.location,
+      startDate: formatDateForApi(restoredEvent.start_date),
+      endDate: formatDateForApi(restoredEvent.end_date),
+      startTime: restoredEvent.start_time,
+      endTime: restoredEvent.end_time,
+      isAllDay: restoredEvent.is_all_day,
+      alarmEnabled: restoredEvent.alarm_enabled,
+      alarmMinutes: restoredEvent.alarm_minutes,
+      createdAt: formatDateTime(restoredEvent.created_at)
+    }
   });
 }));
 

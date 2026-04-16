@@ -1,5 +1,31 @@
 // Claw-Calendar - 日程管理功能
 
+/**
+ * 显示全局消息提示
+ * @param {string} message - 消息内容
+ * @param {string} type - success | error | warning | info
+ */
+function showGlobalMessage(message, type = 'info') {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  const iconSvg = type === 'success'
+    ? '<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>'
+    : '<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>';
+
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.innerHTML = `${iconSvg}<span>${escapeHtml(message)}</span>`;
+
+  container.appendChild(toast);
+
+  // 3秒后自动隐藏
+  setTimeout(() => {
+    toast.classList.add('hide');
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
 // 获取日程列表
 async function fetchEvents(calendarId = null) {
   const token = getToken();
@@ -108,7 +134,7 @@ async function deleteEventApi(calendarId, eventId) {
     const data = await response.json();
 
     if (response.ok) {
-      return { success: true };
+      return { success: true, deletedEvent: data.deletedEvent };
     } else {
       return { success: false, error: data.error || '删除日程失败' };
     }
@@ -116,6 +142,99 @@ async function deleteEventApi(calendarId, eventId) {
     console.error('删除日程失败:', error);
     return { success: false, error: '网络错误' };
   }
+}
+
+// 恢复已删除的事件
+async function restoreEventApi(eventId, eventData) {
+  const token = getToken();
+  if (!token) return { success: false, error: '未登录' };
+
+  try {
+    const response = await fetch(`/api/calendars/${eventData.calendarId}/events/${eventId}/restore`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(eventData)
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      return { success: true };
+    } else {
+      return { success: false, error: data.error || '恢复日程失败' };
+    }
+  } catch (error) {
+    console.error('恢复日程失败:', error);
+    return { success: false, error: '网络错误' };
+  }
+}
+
+// 待撤销的事件数据
+let pendingUndo = null;
+let undoTimer = null;
+let undoTimeout = 5000; // 5秒内可撤销
+
+// 显示撤销提示
+function showUndoMessage(message, eventData, eventId, calendarId) {
+  // 清除之前的撤销状态
+  if (undoTimer) {
+    clearTimeout(undoTimer);
+    pendingUndo = null;
+  }
+
+  // 保存待撤销的数据
+  pendingUndo = { eventData, eventId, calendarId };
+
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  const undoIcon = '<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/></svg>';
+  const toast = document.createElement('div');
+  toast.className = 'toast toast-info';
+  toast.innerHTML = `${undoIcon}<span>${message}</span><a href="#" id="undo-btn" style="color: rgba(255,255,255,0.85); text-decoration: underline; font-weight: 600;">撤销</a>`;
+
+  container.appendChild(toast);
+
+  // 绑定撤销按钮事件
+  const undoBtn = document.getElementById('undo-btn');
+  if (undoBtn) {
+    undoBtn.onclick = async () => {
+      if (pendingUndo) {
+        undoBtn.textContent = '恢复中...';
+        undoBtn.disabled = true;
+
+        const result = await restoreEventApi(pendingUndo.eventId, pendingUndo.eventData);
+
+        if (result.success) {
+          loadEvents();
+          // 显示恢复成功提示
+          showGlobalMessage('日程已恢复', 'success');
+        } else {
+          showGlobalMessage(result.error?.message || result.error, 'error');
+        }
+
+        pendingUndo = null;
+        if (undoTimer) {
+          clearTimeout(undoTimer);
+          undoTimer = null;
+        }
+        // 移除 toast
+        toast.classList.add('hide');
+        setTimeout(() => toast.remove(), 300);
+      }
+    };
+  }
+
+  // 5秒后自动隐藏
+  undoTimer = setTimeout(() => {
+    pendingUndo = null;
+    undoTimer = null;
+    toast.classList.add('hide');
+    setTimeout(() => toast.remove(), 300);
+  }, undoTimeout);
 }
 
 // 渲染日程列表
@@ -208,7 +327,7 @@ function renderEventList(events, calendars) {
                     ` : ''}
                   </div>
                 </div>
-                <button class="btn-icon btn-icon-danger" onclick="confirmDeleteEvent('${event.calendarId}', '${event.id}')" title="删除">
+                <button class="btn-icon btn-icon-danger" onclick="deleteEvent('${event.calendarId}', '${event.id}')" title="删除">
                   <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
                   </svg>
@@ -243,7 +362,7 @@ async function loadEvents() {
   if (eventsResult.success && calendarsResult.success) {
     renderEventList(eventsResult.events, calendarsResult.calendars);
   } else {
-    showMessage('event-message', (eventsResult.error?.message || eventsResult.error) || (calendarsResult.error?.message || calendarsResult.error), 'error');
+    showGlobalMessage((eventsResult.error?.message || eventsResult.error) || (calendarsResult.error?.message || calendarsResult.error), 'error');
   }
 }
 
@@ -311,20 +430,27 @@ async function createEvent() {
   const alarmMinutes = parseInt(document.getElementById('event-alarm-minutes').value);
 
   if (!calendarId) {
-    showMessage('event-message', '请选择日历', 'error');
+    showGlobalMessage('请选择日历', 'warning');
     return;
   }
   if (!title) {
-    showMessage('event-message', '请输入日程标题', 'error');
+    showGlobalMessage('请输入日程标题', 'warning');
     return;
   }
   if (!startDate || !endDate) {
-    showMessage('event-message', '请选择开始和结束日期', 'error');
+    showGlobalMessage('请选择开始和结束日期', 'warning');
     return;
   }
   if (startDate > endDate) {
-    showMessage('event-message', '结束日期不能早于开始日期', 'error');
+    showGlobalMessage('结束日期不能早于开始日期', 'warning');
     return;
+  }
+
+  // 显示加载状态
+  const submitBtn = document.getElementById('event-submit-btn');
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = '创建中...';
   }
 
   const result = await createEventApi({
@@ -339,25 +465,29 @@ async function createEvent() {
     alarmMinutes
   });
 
+  // 恢复按钮状态
+  if (submitBtn) {
+    submitBtn.disabled = false;
+    submitBtn.textContent = '创建';
+  }
+
   if (result.success) {
-    showMessage('event-message', '日程创建成功', 'success');
+    showGlobalMessage('日程创建成功', 'success');
     closeCreateEventModal();
     loadEvents();
   } else {
-    showMessage('event-message', result.error?.message || result.error, 'error');
+    showGlobalMessage(result.error?.message || result.error, 'error');
   }
 }
 
-// 确认删除日程
-function confirmDeleteEvent(calendarId, eventId) {
-  if (!confirm('确定要删除这个日程吗？此操作不可恢复。')) return;
-
+// 直接删除日程（带撤销）
+function deleteEvent(calendarId, eventId) {
   deleteEventApi(calendarId, eventId).then(result => {
     if (result.success) {
-      showMessage('event-message', '日程已删除', 'success');
+      showUndoMessage('日程已删除', result.deletedEvent, eventId, calendarId);
       loadEvents();
     } else {
-      showMessage('event-message', result.error?.message || result.error, 'error');
+      showGlobalMessage(result.error?.message || result.error, 'error');
     }
   });
 }

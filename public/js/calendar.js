@@ -9,6 +9,10 @@ let allEvents = [];            // 所有事件
 let selectedCalColor = '#4f46e5';
 let editingEventId = null;
 
+// 待撤销的事件数据
+let pendingUndo = null;
+let undoTimer = null;
+
 // ─── 初始化 ────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -202,7 +206,13 @@ async function createCalendar() {
   const description = document.getElementById('cal-description').value.trim();
   const isPublic = document.getElementById('cal-public').checked;
 
-  if (!name) { showMsg('请输入日历名称', 'error'); return; }
+  if (!name) { showMsg('请输入日历名称', 'warning'); return; }
+
+  // 显示加载状态
+  const submitBtn = document.getElementById('cal-submit-btn');
+  const originalText = submitBtn.textContent;
+  submitBtn.disabled = true;
+  submitBtn.textContent = calendarId ? '保存中...' : '创建中...';
 
   if (calendarId) {
     // 编辑模式
@@ -211,6 +221,9 @@ async function createCalendar() {
       body: JSON.stringify({ name, description, isPublic, color: selectedCalColor })
     });
     const data = await res.json();
+    submitBtn.disabled = false;
+    submitBtn.textContent = originalText;
+
     if (res.ok) {
       // 更新本地数据
       const idx = allCalendars.findIndex(c => c.id === calendarId);
@@ -232,6 +245,9 @@ async function createCalendar() {
       body: JSON.stringify({ name, description, isPublic, color: selectedCalColor })
     });
     const data = await res.json();
+    submitBtn.disabled = false;
+    submitBtn.textContent = originalText;
+
     if (res.ok) {
       // 将新日历加入 allCalendars 数组，确保 populateCalendarSelect 有数据
       allCalendars.push(data.calendar);
@@ -333,7 +349,7 @@ function renderUpcomingEvents() {
                 ${ev.startTime ? `<span class="upcoming-time">${ev.startTime.substring(0,5)}${ev.endTime ? `-${ev.endTime.substring(0,5)}` : ''}</span>` : ''}
                 <span class="upcoming-title">${escapeHtml(ev.title)}</span>
               </div>
-              <button class="btn-icon-xs danger" onclick="confirmDeleteEvent('${ev.calendarId}','${ev.id}')" title="删除">
+              <button class="btn-icon-xs danger" onclick="deleteEvent('${ev.calendarId}','${ev.id}')" title="删除">
                 <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
               </button>
             </div>
@@ -439,18 +455,105 @@ async function saveEvent() {
   }
 }
 
-async function confirmDeleteEvent(calendarId, eventId) {
-  if (!confirm('确定删除这个日程？')) return;
+// ─── 事件删除（带撤销） ────────────────────────────────────────
+
+async function deleteEvent(calendarId, eventId) {
+  // 找到被删除的事件数据
+  const eventToDelete = allEvents.find(e => e.id === eventId);
+  if (!eventToDelete) return;
+
   const res = await apiFetch(`/api/calendars/${calendarId}/events/${eventId}`, { method: 'DELETE' });
   if (res.ok) {
+    const data = await res.json();
+
+    // 保存待撤销的数据
+    pendingUndo = {
+      event: { ...eventToDelete },
+      deletedEvent: data.deletedEvent
+    };
+
+    // 从列表移除
     allEvents = allEvents.filter(e => e.id !== eventId);
     renderUpcomingEvents();
     renderCalView();
-    showMsg('日程已删除', 'success');
+
+    // 显示撤销提示
+    showUndoMessage('日程已删除', data.deletedEvent, eventId, calendarId);
   } else {
     const d = await res.json();
     showMsg(d.error || '删除失败', 'error');
   }
+}
+
+// 显示撤销消息
+function showUndoMessage(message, eventData, eventId, calendarId) {
+  // 清除之前的撤销状态
+  if (undoTimer) {
+    clearTimeout(undoTimer);
+    pendingUndo = null;
+  }
+
+  // 保存待撤销的数据
+  pendingUndo = { eventData, eventId, calendarId };
+
+  const container = document.getElementById('toast-container');
+  if (!container) {
+    showMsg(message, 'success');
+    return;
+  }
+
+  const undoIcon = '<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/></svg>';
+  const toast = document.createElement('div');
+  toast.className = 'toast toast-info';
+  toast.innerHTML = `${undoIcon}<span>${message}</span><a href="#" id="undo-btn" style="color: rgba(255,255,255,0.85); text-decoration: underline; font-weight: 600;">撤销</a>`;
+
+  container.appendChild(toast);
+
+  // 绑定撤销按钮事件
+  const undoBtn = document.getElementById('undo-btn');
+  if (undoBtn) {
+    undoBtn.onclick = async () => {
+      if (pendingUndo) {
+        undoBtn.textContent = '恢复中...';
+        undoBtn.disabled = true;
+
+        const res = await apiFetch(`/api/calendars/${pendingUndo.calendarId}/events/${pendingUndo.eventId}/restore`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(pendingUndo.eventData)
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          // 使用后端返回的解密后的事件数据
+          allEvents.push(data.event);
+          renderUpcomingEvents();
+          renderCalView();
+          showMsg('已恢复', 'success');
+        } else {
+          const d = await res.json();
+          showMsg(d.error || '恢复失败', 'error');
+        }
+
+        pendingUndo = null;
+        if (undoTimer) {
+          clearTimeout(undoTimer);
+          undoTimer = null;
+        }
+        // 移除 toast
+        toast.classList.add('hide');
+        setTimeout(() => toast.remove(), 300);
+      }
+    };
+  }
+
+  // 5秒后自动隐藏
+  undoTimer = setTimeout(() => {
+    pendingUndo = null;
+    undoTimer = null;
+    toast.classList.add('hide');
+    setTimeout(() => toast.remove(), 300);
+  }, 5000);
 }
 
 // ─── 视图切换 ──────────────────────────────────────────────────
@@ -778,7 +881,7 @@ function renderDayView() {
           </div>
           ${ev.description ? `<div class="day-event-desc">${escapeHtml(ev.description)}</div>` : ''}
         </div>
-        <button class="btn-icon-xs danger" onclick="confirmDeleteEvent('${ev.calendarId}','${ev.id}')" title="删除">
+        <button class="btn-icon-xs danger" onclick="deleteEvent('${ev.calendarId}','${ev.id}')" title="删除">
           <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
           </svg>
@@ -859,14 +962,28 @@ function closeEventDetailModal() {
 }
 
 async function deleteEventFromDetail(calendarId, eventId) {
-  if (!confirm('确定删除这个日程？')) return;
+  // 找到被删除的事件数据
+  const eventToDelete = allEvents.find(e => e.id === eventId);
+  if (!eventToDelete) return;
+
   const res = await apiFetch(`/api/calendars/${calendarId}/events/${eventId}`, { method: 'DELETE' });
   if (res.ok) {
+    const data = await res.json();
+
+    // 保存待撤销的数据
+    pendingUndo = {
+      event: { ...eventToDelete },
+      deletedEvent: data.deletedEvent
+    };
+
+    // 从列表移除
     allEvents = allEvents.filter(e => e.id !== eventId);
     closeEventDetailModal();
     renderUpcomingEvents();
     renderCalView();
-    showMsg('日程已删除', 'success');
+
+    // 显示撤销提示
+    showUndoMessage('日程已删除', data.deletedEvent, eventId, calendarId);
   } else {
     const d = await res.json();
     showMsg(d.error || '删除失败', 'error');
