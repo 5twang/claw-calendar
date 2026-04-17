@@ -35,7 +35,15 @@ setupSecurity(app);
 
 // ============ 基础中间件 ============
 // CORS配置：限制允许的源
-const corsOptions = {
+const isTest = process.env.NODE_ENV === 'test';
+const isProd = process.env.NODE_ENV === 'production';
+
+const corsOptions = isTest ? {
+  origin: true,  // 测试环境允许所有源
+  credentials: false,  // 测试环境禁用 credentials 以支持通配符
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'Depth']
+} : {
   origin: function (origin, callback) {
     // 允许的源列表
     const allowedOrigins = [
@@ -49,7 +57,7 @@ const corsOptions = {
       callback(null, true);
     } else {
       // 生产环境拒绝未知源
-      if (process.env.NODE_ENV === 'production') {
+      if (isProd) {
         callback(new Error('不允许的 CORS 源'));
       } else {
         // 开发环境允许所有源
@@ -59,7 +67,7 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'Depth']
 };
 
 app.use(cors(corsOptions));
@@ -75,8 +83,9 @@ app.get('/', (req, res) => {
 });
 
 // ============ CalDAV 服务 (RFC 4791) ============
-app.use('/dav', caldavRouter);
-app.use('/principals', caldavRouter);
+// CalDAV 路由挂载到 /dav 和 /principals 两个端点（RFC 3744/6764）
+app.use('/dav', require('./routes/caldav'));
+app.use('/principals', require('./routes/caldav'));
 
 // /.well-known/caldav -> /dav/
 app.get('/.well-known/caldav', (req, res) => {

@@ -53,7 +53,8 @@ describe('CalDAV 安全测试', () => {
   describe('OPTIONS 请求', () => {
     test('OPTIONS 请求应该返回 CORS 头', async () => {
       const res = await request(app)
-        .options('/.well-known/caldav')
+        .options('/dav/')
+        .set('Origin', 'http://localhost:3000')
         .set('Access-Control-Request-Method', 'PROPFIND');
 
       // CORS 预检请求应该被处理

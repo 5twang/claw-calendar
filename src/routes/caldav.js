@@ -91,6 +91,29 @@ async function caldavAuthenticate(req) {
   }
 }
 
+// 检查认证中间件（必须在路由定义之前注册）
+async function requireAuth(req, res, next) {
+  // OPTIONS 请求不需要认证，直接放行
+  if (req.method === 'OPTIONS') {
+    return next();
+  }
+
+  const user = await caldavAuthenticate(req);
+  if (!user) {
+    res.setHeader('WWW-Authenticate', 'Basic realm="Claw Calendar"');
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    return res.status(401).send(`<?xml version="1.0" encoding="UTF-8"?>
+<d:error xmlns:d="DAV:">
+  <d:valid-nonce/>
+</d:error>`);
+  }
+  req.caldavUser = user;
+  next();
+}
+
+// 应用认证到所有 CalDAV 路由（必须在路由定义之前）
+router.use(requireAuth);
+
 // ============================================================
 // 服务发现 (RFC 6764)
 // ============================================================
@@ -101,10 +124,45 @@ router.get('/.well-known/caldav', (req, res) => {
 });
 
 // ============================================================
-// Principal 端点 (RFC 3744)
+// 动态路由处理（支持 /dav 和 /principals 两个挂载点）
 // ============================================================
 
-// /principals/ - 所有 principals 列表
+// 检测挂载点：/dav 或 /principals
+function getMountPoint(req) {
+  const baseUrl = req.baseUrl;
+  if (baseUrl.endsWith('/dav')) return '/dav';
+  if (baseUrl.endsWith('/principals')) return '/principals';
+  return baseUrl || '/dav';
+}
+
+// /dav/ 或 /principals/ 根路径处理
+router.all('/', async (req, res, next) => {
+  const mountPoint = getMountPoint(req);
+
+  if (mountPoint === '/principals') {
+    // /principals/ 作为 principals 列表处理
+    if (req.method === 'PROPFIND') {
+      return handlePrincipals(req, res);
+    }
+    if (req.method === 'OPTIONS') {
+      return handlePrincipalsOptions(req, res);
+    }
+  }
+
+  // /dav/ 作为日历主页处理
+  if (mountPoint === '/dav') {
+    if (req.method === 'PROPFIND') {
+      return handleDavRoot(req, res);
+    }
+    if (req.method === 'OPTIONS') {
+      return handleDavRootOptions(req, res);
+    }
+  }
+
+  next();
+});
+
+// /dav/principals/ 或 /principals/principals/ - principals 列表（备用）
 router.all('/principals/', async (req, res, next) => {
   if (req.method === 'PROPFIND') {
     return handlePrincipals(req, res);
@@ -115,7 +173,7 @@ router.all('/principals/', async (req, res, next) => {
   next();
 });
 
-// /principals/:userId/ - 用户 principal
+// /dav/principals/:userId/ 或 /principals/:userId/ - 用户 principal
 router.all('/principals/:userId/', async (req, res, next) => {
   if (req.method === 'PROPFIND') {
     return handlePrincipal(req, res);
@@ -126,23 +184,8 @@ router.all('/principals/:userId/', async (req, res, next) => {
   next();
 });
 
-// ============================================================
-// CalDAV 端点
-// ============================================================
-
-// /dav/ - 日历主页
-router.all('/dav/', async (req, res, next) => {
-  if (req.method === 'PROPFIND') {
-    return handleDavRoot(req, res);
-  }
-  if (req.method === 'OPTIONS') {
-    return handleDavRootOptions(req, res);
-  }
-  next();
-});
-
 // /dav/:userId/:calendarName/ - 日历集合
-router.all('/dav/:userId/:calendarName/', async (req, res, next) => {
+router.all('/:userId/:calendarName/', async (req, res, next) => {
   if (req.method === 'REPORT') {
     return handleReportEvents(req, res);
   }
@@ -156,7 +199,7 @@ router.all('/dav/:userId/:calendarName/', async (req, res, next) => {
 });
 
 // /dav/:userId/:calendarName/:eventId.ics - 事件操作
-router.all('/dav/:userId/:calendarName/:eventId.ics', async (req, res, next) => {
+router.all('/:userId/:calendarName/:eventId.ics', async (req, res, next) => {
   if (req.method === 'PUT') {
     return handlePutEvent(req, res);
   }
@@ -172,28 +215,6 @@ router.all('/dav/:userId/:calendarName/:eventId.ics', async (req, res, next) => 
 // ============================================================
 // CalDAV 处理函数
 // ============================================================
-
-// 检查认证中间件
-async function requireAuth(req, res, next) {
-  const user = await caldavAuthenticate(req);
-  if (!user) {
-    res.setHeader('WWW-Authenticate', 'Basic realm="Claw Calendar"');
-    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
-    return res.status(401).send(`<?xml version="1.0" encoding="UTF-8"?>
-<d:error xmlns:d="DAV:">
-  <d:valid-nonce/>
-</d:error>`);
-  }
-  req.caldavUser = user;
-  next();
-}
-
-// 应用认证到所有需要认证的路由
-router.all('/principals/', requireAuth);
-router.all('/principals/:userId/', requireAuth);
-router.all('/dav/', requireAuth);
-router.all('/dav/:userId/:calendarName/', requireAuth);
-router.all('/dav/:userId/:calendarName/:eventId.ics', requireAuth);
 
 // ============================================================
 // Principal 处理
@@ -226,6 +247,10 @@ async function handlePrincipals(req, res) {
 }
 
 async function handlePrincipalsOptions(req, res) {
+  // 添加 CORS 头
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'OPTIONS, PROPFIND');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Depth');
   res.setHeader('Allow', 'OPTIONS, PROPFIND');
   res.setHeader('DAV', '1, 3, calendar-access, calendar-proxy');
   res.sendStatus(200);
@@ -283,6 +308,10 @@ async function handlePrincipal(req, res) {
 }
 
 async function handlePrincipalOptions(req, res) {
+  // 添加 CORS 头
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'OPTIONS, PROPFIND');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Depth');
   res.setHeader('Allow', 'OPTIONS, PROPFIND');
   res.setHeader('DAV', '1, 3, calendar-access, calendar-proxy');
   res.sendStatus(200);
@@ -359,13 +388,21 @@ async function handleDavRoot(req, res) {
 }
 
 async function handleDavRootOptions(req, res) {
+  // 添加 CORS 头
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'OPTIONS, PROPFIND, REPORT');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Depth');
   res.setHeader('Allow', 'OPTIONS, PROPFIND, REPORT');
   res.setHeader('DAV', '1, 3, calendar-access, calendar-proxy');
   res.sendStatus(200);
 }
 
 async function handleCalendarOptions(req, res) {
-  res.setHeader('Allow', 'OPTIONS, PROPFIND, REPORT, PROPPATCH');
+  // 添加 CORS 头
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'OPTIONS, PROPFIND, REPORT, PROPPATCH, PUT, DELETE, GET');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Depth, If-None-Match, If-Match');
+  res.setHeader('Allow', 'OPTIONS, PROPFIND, REPORT, PROPPATCH, PUT, DELETE, GET');
   res.setHeader('DAV', '1, 3, calendar-access, calendar-proxy');
   res.sendStatus(200);
 }

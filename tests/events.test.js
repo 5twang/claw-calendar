@@ -5,15 +5,28 @@
 const request = require('supertest');
 const app = require('../src/app');
 const { generateToken } = require('../src/middleware/auth');
+const pool = require('../src/config/database');
 
 describe('事件 CRUD 测试', () => {
   let authToken;
-  // 使用数据库中已存在的测试用户
-  const testEmail = 'workbuddy@test.com';
-  const userId = 'f6d6d24b-ea0a-46d9-97fc-16f811fc8a4d';
+  const testEmail = 'eventstest@test.com';
+  let userId;
   let testCalendarId;
 
   beforeAll(async () => {
+    // 创建测试用户
+    const bcrypt = require('bcryptjs');
+    const passwordHash = await bcrypt.hash('password123', 10);
+
+    const userResult = await pool.query(
+      `INSERT INTO users (email, password_hash, is_active, created_at)
+       VALUES ($1, $2, true, NOW())
+       ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email
+       RETURNING id`,
+      [testEmail, passwordHash]
+    );
+    userId = userResult.rows[0].id;
+
     authToken = generateToken({
       id: userId,
       email: testEmail

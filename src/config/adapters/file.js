@@ -325,6 +325,29 @@ class FileAdapter extends DatabaseAdapter {
             continue;
           }
 
+          // 日期范围比较：start_date >= $N 或 end_date <= $N
+          const dateGteMatch = condition.match(/(\w+_date)\s*>=\s*\$(\d+)/i);
+          if (dateGteMatch) {
+            const column = dateGteMatch[1];
+            const paramIndex = parseInt(dateGteMatch[2]) - 1;
+            const dateValue = params[paramIndex];
+            if (dateValue) {
+              rows = rows.filter(r => r[column] && r[column] >= dateValue);
+            }
+            continue;
+          }
+
+          const dateLteMatch = condition.match(/(\w+_date)\s*<=\s*\$(\d+)/i);
+          if (dateLteMatch) {
+            const column = dateLteMatch[1];
+            const paramIndex = parseInt(dateLteMatch[2]) - 1;
+            const dateValue = params[paramIndex];
+            if (dateValue) {
+              rows = rows.filter(r => r[column] && r[column] <= dateValue);
+            }
+            continue;
+          }
+
           const keyHashMatch = condition.match(/key_hash\s*=\s*\$(\d+)/i);
           if (keyHashMatch) {
             const paramIndex = parseInt(keyHashMatch[1]) - 1;
@@ -380,6 +403,58 @@ class FileAdapter extends DatabaseAdapter {
             rows = rows.filter(r => !r.expires_at || new Date(r.expires_at) > now);
             continue;
           }
+        }
+      }
+    }
+
+    // 处理 GROUP BY 聚合查询（基础支持）
+    if (sql.toLowerCase().includes('group by')) {
+      const groupMatch = sql.match(/group\s+by\s+([\w.]+)/i);
+      // 匹配 COUNT(e.id) as alias 或 COUNT(id) as alias
+      const countMatch = sql.match(/count\s*\(\s*[\w.]+\s*\)\s+as\s+(\w+)/i);
+
+      if (groupMatch && countMatch) {
+        const groupColumn = groupMatch[1]; // 如 'c.id'
+        const countAlias = countMatch[1];  // 如 'event_count'
+
+        // 提取主表别名（如 'c'）和列名（如 'id'）
+        const groupParts = groupColumn.split('.');
+        const groupColName = groupParts[groupParts.length - 1]; // 最后一列是列名
+
+        // 按主表列分组并计算关联表的数量
+        const grouped = {};
+        // 匹配各种 JOIN 变体：JOIN, LEFT JOIN, RIGHT JOIN, INNER JOIN
+        const joinMatch = sql.match(/(?:left|right|inner)?\s*join\s+(\w+)\s+(\w+)\s+on\s+/i);
+
+        if (joinMatch) {
+          const relatedTable = joinMatch[1]; // 如 'events'
+          const relatedAlias = joinMatch[2]; // 如 'e'
+
+          // 获取关联表数据
+          const relatedRows = this.tables[relatedTable] ?
+            Array.from(this.tables[relatedTable].values()) : [];
+
+          // 获取主表数据（rows已经在WHERE过滤后）
+          const mainRows = rows;
+
+          // 按主表ID分组，统计关联行数
+          mainRows.forEach(mainRow => {
+            const key = mainRow[groupColName];
+            // 初始化分组结果
+            if (!grouped[key]) {
+              grouped[key] = {
+                ...mainRow,
+                [countAlias]: 0
+              };
+            }
+            // 统计关联行数 - 检查 events 表中的 calendar_id
+            const relatedCount = relatedRows.filter(relRow => {
+              return relRow.calendar_id === key;
+            }).length;
+            grouped[key][countAlias] += relatedCount;
+          });
+
+          rows = Object.values(grouped);
         }
       }
     }

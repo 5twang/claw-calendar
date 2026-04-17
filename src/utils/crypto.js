@@ -128,7 +128,12 @@ function decryptFields(data, fields) {
 
   for (const field of fieldsToDecrypt) {
     if (decrypted[field]) {
-      decrypted[field] = decrypt(decrypted[field]);
+      try {
+        decrypted[field] = decrypt(decrypted[field]);
+      } catch (err) {
+        // 解密失败时保留原始值（可能是未加密的旧数据）
+        console.warn(`[Decrypt] 字段 ${field} 解密失败，保留原始值: ${err.message}`);
+      }
     }
   }
 

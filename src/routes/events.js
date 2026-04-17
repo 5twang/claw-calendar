@@ -185,7 +185,7 @@ router.put('/:eventId', authenticate, checkCalendarOwnership, asyncHandler(async
     throw errors.forbidden('无权修改此事件');
   }
 
-  const { title, startDate, endDate, startTime, endTime, description, location, alarm, alarmMinutes } = req.body;
+  const { title, startDate, endDate, startTime, endTime, description, location, isAllDay, alarm, alarmMinutes } = req.body;
 
   const updates = [];
   const values = [];
@@ -226,6 +226,17 @@ router.put('/:eventId', authenticate, checkCalendarOwnership, asyncHandler(async
   if (endTime !== undefined) {
     updates.push(`end_time = $${paramIndex++}`);
     values.push(endTime);
+  }
+  if (isAllDay !== undefined) {
+    updates.push(`is_all_day = $${paramIndex++}`);
+    values.push(isAllDay);
+    // 如果设置为全天事件，清除时间
+    if (isAllDay) {
+      updates.push(`start_time = $${paramIndex++}`);
+      values.push(null);
+      updates.push(`end_time = $${paramIndex++}`);
+      values.push(null);
+    }
   }
   if (alarm !== undefined) {
     updates.push(`alarm_enabled = $${paramIndex++}`);
