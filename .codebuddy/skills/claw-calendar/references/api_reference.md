@@ -3,10 +3,11 @@
 ## Base URL
 
 ```
-${CALENDAR_API_BASE_URL}/api
+${CALENDAR_API_BASE_URL}
 ```
 
 This value is configured via the `CALENDAR_API_BASE_URL` environment variable (e.g., https://claw-calendar.com).
+The URL should include the API path prefix if your server requires it (e.g., https://claw-calendar.com/api).
 
 ## Authentication
 
