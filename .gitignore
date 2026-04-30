@@ -21,4 +21,5 @@ ROADMAP.md
 周视图时间轴说明.md
 TESTING.md
 server.log
-deploy.sh
+# CodeBuddy 工作目录
+.codebuddy/
