@@ -55,8 +55,29 @@ router.post('/', authenticate, asyncHandler(async (req, res) => {
   });
 }));
 
-// 获取用户的所有日历
+// 获取用户的所有日历（如果没有日历则自动创建默认日历）
 router.get('/', authenticate, asyncHandler(async (req, res) => {
+  // 检查用户是否有日历
+  const checkResult = await pool.query(
+    'SELECT id FROM calendars WHERE user_id = $1',
+    [req.userId]
+  );
+
+  // 如果没有日历，自动创建"默认"日历
+  if (checkResult.rows.length === 0) {
+    const { key: subscribeToken, hash: subscribeTokenHash } = generateApiKey();
+    const encryptedData = encryptCalendarData({
+      name: '默认',
+      description: '我的默认日历'
+    });
+
+    await pool.query(
+      `INSERT INTO calendars (user_id, name, description, color, is_public, subscribe_token)
+       VALUES ($1, $2, $3, $4, false, $5)`,
+      [req.userId, encryptedData.name, encryptedData.description, '#4285F4', subscribeTokenHash]
+    );
+  }
+
   const result = await pool.query(
     `SELECT c.id, c.name, c.description, c.color, c.is_public, c.subscribe_token, c.created_at,
             COUNT(e.id) as event_count
