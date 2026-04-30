@@ -34,6 +34,7 @@ Claw Calendar 是一款 **Calendar Skills 智能日历助手**，支持：
 | 🔐 **数据安全** | JWT 认证、API Key、请求限流 |
 | 🚀 **高可用** | 支持 Docker 部署，易于水平扩展 |
 | 🐳 **容器化部署** | Docker Compose 一键部署 |
+| ⌨️ **键盘快捷键** | C 新建日程、Esc 取消、? 帮助、t 今天、d/w/m 切换视图 |
 
 ---
 
@@ -282,13 +283,15 @@ docker-compose up -d
 | `NODE_ENV` | 运行环境 | 否 | development |
 | `DATA_DIR` | 数据存储目录 | 否 | ./data |
 | `DATABASE_URL` | PostgreSQL 连接字符串 | 否 | 使用 JSON 文件 |
-| `ENCRYPTION_KEY` | 加密密钥（32字节） | 生产必填 | - |
+| `DB_SSL_DISABLED` | 禁用 PostgreSQL SSL | 否 | false |
+| `ENCRYPTION_KEY` | 加密密钥（64字符十六进制） | 生产必填 | - |
 | `ENCRYPTION_LEVEL` | 加密级别 | 否 | full |
+| `ENCRYPTION_SALT` | 加密盐值 | 生产必填 | - |
 | `JWT_SECRET` | JWT 签名密钥 | 生产必填 | - |
 | `SMTP_HOST` | SMTP 服务器 | 否 | - |
 | `SMTP_PORT` | SMTP 端口 | 否 | 587 |
 | `SMTP_USER` | SMTP 用户名 | 否 | - |
-| `SMTP_PASS` | SMTP 密码 | 否 | - |
+| `SMTP_PASS` | SMTP 密码/授权码 | 否 | - |
 | `SMTP_FROM` | 发件人地址 | 否 | noreply@localhost |
 
 ---
