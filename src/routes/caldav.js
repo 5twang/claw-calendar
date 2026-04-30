@@ -229,8 +229,25 @@ router.all('/principals/:userId/', async (req, res, next) => {
   next();
 });
 
+// 兼容 /principals 挂载点：当路由挂载在 /principals 下时，请求 /principals/{userId}/
+// 的路径前缀 /principals 被 Express 剥离，在 router 内变成 /{userId}/
+// 这里添加 /:userId/ 路由，通过 getMountPoint 区分挂载点
+router.all('/:userId/', async (req, res, next) => {
+  const mountPoint = getMountPoint(req);
+  if (mountPoint === '/principals') {
+    // 这是 /principals/{userId}/ 的请求
+    if (req.method === 'PROPFIND') return handlePrincipal(req, res);
+    if (req.method === 'OPTIONS') return handlePrincipalOptions(req, res);
+  }
+  // 如果不是 principals 挂载点，跳过（避免误匹配 /dav/ 下的路径）
+  next();
+});
+
 // /dav/:userId/:calendarName/ - 日历集合
 router.all('/:userId/:calendarName/', async (req, res, next) => {
+  if (req.method === 'PROPFIND') {
+    return handleCalendarPropfind(req, res);
+  }
   if (req.method === 'REPORT') {
     return handleReportEvents(req, res);
   }
@@ -334,6 +351,9 @@ async function handlePrincipal(req, res) {
         <cal:calendar-user-address-set>
           <d:href>mailto:${escapeXml(user.email)}</d:href>
         </cal:calendar-user-address-set>
+        <cal:calendar-home-set>
+          <d:href>/dav/</d:href>
+        </cal:calendar-home-set>
         <d:supported-report-set>
           <d:supported-report>
             <d:report><cal:calendar-query/></d:report>
@@ -454,6 +474,154 @@ async function handleCalendarOptions(req, res) {
   res.setHeader('Allow', 'OPTIONS, PROPFIND, REPORT, PROPPATCH, PUT, DELETE, GET');
   res.setHeader('DAV', '1, 3, calendar-access, calendar-proxy');
   res.sendStatus(200);
+}
+
+async function handleCalendarPropfind(req, res) {
+  const user = req.caldavUser;
+  const { userId, calendarName } = req.params;
+
+  // 验证用户权限
+  if (userId !== user.id) {
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    return res.status(403).send(`<?xml version="1.0" encoding="UTF-8"?>
+<d:error xmlns:d="DAV:">
+  <d:privilege><d:read/></d:privilege>
+</d:error>`);
+  }
+
+  // 查找日历
+  const calResult = await pool.query(
+    'SELECT id, name, color FROM calendars WHERE user_id = $1 AND name = $2',
+    [user.id, calendarName]
+  );
+
+  if (calResult.rows.length === 0) {
+    return res.status(404).send('Calendar not found');
+  }
+
+  const cal = calResult.rows[0];
+  const calHref = `/dav/${user.id}/${encodeURIComponent(cal.name)}/`;
+
+  // 日历自身属性
+  let calendarResponse = `
+  <d:response>
+    <d:href>${escapeXml(calHref)}</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:resourcetype>
+          <d:collection/>
+          <cal:calendar/>
+        </d:resourcetype>
+        <d:displayname>${escapeXml(cal.name)}</d:displayname>
+        <cal:calendar-description>${escapeXml(cal.name)}</cal:calendar-description>
+        <cal:supported-calendar-component-set>
+          <cal:comp name="VEVENT"/>
+        </cal:supported-calendar-component-set>
+        <d:owner>
+          <d:href>/principals/${user.id}/</d:href>
+        </d:owner>
+        <cs:getctag>"${cal.id}-${Date.now()}"</cs:getctag>
+        <d:current-user-privilege-set>
+          <d:privilege><d:all/></d:privilege>
+        </d:current-user-privilege-set>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>`;
+
+  // 返回日历内的事件（无论 Depth 是多少，兼容只发 Depth:0 的客户端如 HarmonyOS）
+  let eventResponses = '';
+  try {
+    const eventsResult = await pool.query(
+      'SELECT * FROM events WHERE calendar_id = $1 ORDER BY start_date ASC, start_time ASC',
+      [cal.id]
+    );
+    const events = decryptEventList(eventsResult.rows);
+
+    // 格式化日期字段（PostgreSQL date 类型返回 Date 对象）
+    const fmtDate = (d) => {
+      if (!d) return '';
+      if (typeof d === 'string') return d;
+      return d.toISOString().split('T')[0];
+    };
+    for (const ev of events) {
+      ev.start_date = fmtDate(ev.start_date);
+      ev.end_date = fmtDate(ev.end_date);
+    }
+
+    const now = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+
+    for (const event of events) {
+      const uid = event.id;
+      const eventHref = `/dav/${user.id}/${encodeURIComponent(cal.name)}/${uid}.ics`;
+
+      // 生成 VCALENDAR
+      let dtstart, dtend;
+      if (event.is_all_day || event.isAllDay) {
+        const sd = event.start_date.replace(/-/g, '');
+        const ed = event.end_date ? event.end_date.replace(/-/g, '') : sd;
+        dtstart = `DTSTART;VALUE=DATE:${sd}`;
+        dtend = `DTEND;VALUE=DATE:${ed}`;
+      } else {
+        const sd = event.start_date.replace(/-/g, '');
+        const st = event.start_time ? event.start_time.replace(/:/g, '') : '000000';
+        const ed = event.end_date ? event.end_date.replace(/-/g, '') : sd;
+        const et = event.end_time ? event.end_time.replace(/:/g, '') : st;
+        dtstart = `DTSTART;TZID=${DEFAULT_TIMEZONE}:${sd}T${st}`;
+        dtend = `DTEND;TZID=${DEFAULT_TIMEZONE}:${ed}T${et}`;
+      }
+
+      const icsEscape = (str) => {
+        if (!str) return '';
+        return String(str)
+          .replace(/\\/g, '\\\\')
+          .replace(/;/g, '\\;')
+          .replace(/,/g, '\\,')
+          .replace(/\n/g, '\\n');
+      };
+
+      const ics = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Claw Calendar//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:${icsEscape(cal.name)}
+BEGIN:VEVENT
+UID:${uid}
+DTSTAMP:${now}
+${dtstart}
+${dtend}
+SUMMARY:${icsEscape(event.title || '')}
+DESCRIPTION:${icsEscape(event.description || '')}
+LOCATION:${icsEscape(event.location || '')}
+END:VEVENT
+END:VCALENDAR`;
+
+      eventResponses += `
+  <d:response>
+    <d:href>${escapeXml(eventHref)}</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:getetag>"${uid}"</d:getetag>
+        <d:getcontenttype>text/calendar; charset=utf-8; component=vevent</d:getcontenttype>
+        <d:resourcetype/>
+        <cal:calendar-data>${escapeXml(ics)}</cal:calendar-data>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>`;
+    }
+  } catch (e) {
+    console.error('[CalendarPropfind] Error fetching events:', e.message);
+  }
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<d:multistatus xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav" xmlns:cs="http://calendarserver.org/ns/" xmlns:card="urn:ietf:params:xml:ns:carddav" xmlns:apple="http://apple.com/ns/ical/">${calendarResponse}${eventResponses}
+</d:multistatus>`;
+
+  res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+  res.setHeader('DAV', '1, 3, calendar-access, calendar-proxy');
+  res.status(207).send(xml);
 }
 
 // ============================================================
@@ -641,6 +809,17 @@ async function handleReportEvents(req, res) {
 
   const events = decryptEventList(eventsResult.rows);
 
+  // 格式化日期字段（PostgreSQL date 类型返回 Date 对象，需转字符串）
+  const fmtDate = (d) => {
+    if (!d) return '';
+    if (typeof d === 'string') return d;
+    return d.toISOString().split('T')[0]; // Date → 'YYYY-MM-DD'
+  };
+  for (const ev of events) {
+    ev.start_date = fmtDate(ev.start_date);
+    ev.end_date = fmtDate(ev.end_date);
+  }
+
   // 生成 VCALENDAR 响应
   const now = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
   let vevents = '';
@@ -649,10 +828,10 @@ async function handleReportEvents(req, res) {
   const icsEscape = (str) => {
     if (!str) return '';
     return String(str)
-      .replace(/\\/g, '\\\\')
-      .replace(/;/g, '\\;')
-      .replace(/,/g, '\\,')
-      .replace(/\n/g, '\\n');
+          .replace(/\\/g, '\\\\')
+          .replace(/;/g, '\\;')
+          .replace(/,/g, '\\,')
+          .replace(/\n/g, '\\n');
   };
 
   for (const event of events) {
