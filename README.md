@@ -91,6 +91,7 @@ npm start
 | 地址 | 说明 |
 |------|------|
 | http://localhost:3000 | 前端界面 |
+| http://localhost:3000/dashboard | 控制台（登录后使用） |
 | http://localhost:3000/api-docs | **API 文档** (Swagger/OpenAPI) |
 
 ### 4. 运行测试
@@ -305,7 +306,7 @@ docker-compose up -d
 - **加密**: AES-256-GCM
 - **邮件**: Nodemailer
 - **安全**: Helmet + Rate Limiting
-- **测试**: Jest (194 个测试用例，覆盖率 55%+)
+- **测试**: Jest (278 个测试用例)
 - **文档**: Swagger/OpenAPI (仅开发环境)
 - **标准**: iCalendar (RFC 5545) + CalDAV (RFC 4791)
 
@@ -338,7 +339,7 @@ claw-calendar/
 │       ├── errors.js      # 错误定义
 │       └── ical.js        # iCal 解析工具
 ├── public/                 # 静态文件（前端页面）
-├── tests/                  # 测试用例 (194 个)
+├── tests/                  # 测试用例 (278 个)
 ├── data/                   # JSON 数据存储
 └── docker-compose.yml      # Docker 部署配置
 ```
@@ -348,12 +349,6 @@ claw-calendar/
 ## License
 
 MIT License - 详见 [LICENSE](LICENSE) 文件
-
----
-
-## 相关项目
-
-- [Calendar Skill for WorkBuddy](https://github.com/claw-calendar/workbuddy-skill) - WorkBuddy 日历技能插件
 
 ---
 
