@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS events (
 -- API访问日志
 CREATE TABLE IF NOT EXISTS api_logs (
     id BIGSERIAL PRIMARY KEY,
-    api_key_id UUID REFERENCES api_keys(id),
+    api_key_id UUID REFERENCES api_keys(id) ON DELETE CASCADE,
     calendar_id UUID REFERENCES calendars(id),
     user_id UUID REFERENCES users(id),
     action VARCHAR(50) NOT NULL,

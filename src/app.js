@@ -89,6 +89,21 @@ app.get('/', (req, res) => {
 app.use('/dav', require('./routes/caldav'));
 app.use('/principals', require('./routes/caldav'));
 
+// 根路径 CalDAV 兼容：macOS/iOS 在 service discovery 后可能向 / 发 PROPFIND
+// 将其重定向到 /dav/，避免 404
+app.all('/', (req, res, next) => {
+  if (req.method === 'PROPFIND' || req.method === 'OPTIONS' || req.method === 'REPORT') {
+    // macOS 对根路径的 CalDAV 请求，转发到 /dav/
+    req.url = '/dav/';
+    return app.handle(req, res, next);
+  }
+  // 普通 GET 请求还是返回首页
+  if (req.method === 'GET') {
+    return res.sendFile(path.join(__dirname, '../public/index.html'));
+  }
+  next();
+});
+
 // /.well-known/caldav -> /dav/ (RFC 6764)
 app.all('/.well-known/caldav', (req, res) => {
   res.redirect(301, '/dav/');

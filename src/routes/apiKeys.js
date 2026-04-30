@@ -89,7 +89,14 @@ router.delete('/:id', authenticateToken, asyncHandler(async (req, res) => {
     throw errors.notFound('API Key 不存在');
   }
 
-  // 删除
+  // 先删除关联的 api_logs 记录（避免 PostgreSQL FK 约束冲突）
+  // api_logs.api_key_id 有 REFERENCES api_keys(id) 外键约束但无 ON DELETE CASCADE
+  await pool.query(
+    'DELETE FROM api_logs WHERE api_key_id = $1',
+    [id]
+  );
+
+  // 删除 API Key
   await pool.query(
     'DELETE FROM api_keys WHERE id = $1',
     [id]
