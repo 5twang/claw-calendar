@@ -39,10 +39,10 @@ class PostgresAdapter extends DatabaseAdapter {
         log: (msg) => console.log('[DB Pool]', msg),
       };
 
-      // 生产环境启用 SSL
-      if (process.env.NODE_ENV === 'production') {
+      // 生产环境 SSL 配置（支持通过环境变量禁用）
+      if (process.env.NODE_ENV === 'production' && process.env.DB_SSL_DISABLED !== 'true') {
         poolConfig.ssl = {
-          rejectUnauthorized: true,  // 必须验证证书
+          rejectUnauthorized: false,  // 关闭证书验证（本地/自签名证书环境）
           ca: process.env.DB_SSL_CA,      // CA 证书（可选）
           cert: process.env.DB_SSL_CERT,  // 客户端证书（可选）
           key: process.env.DB_SSL_KEY,   // 客户端私钥（可选）
