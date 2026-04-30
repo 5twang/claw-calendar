@@ -41,8 +41,19 @@ const DEV_CALDAV_USER = process.env.NODE_ENV === 'test' ? process.env.DEV_CALDAV
  * 仅在测试环境下允许使用 DEV_CALDAV_USER 环境变量
  */
 async function caldavAuthenticate(req) {
+  // 详细日志
+  const requestId = Date.now();
+  console.log(`[CalDAV-Auth-${requestId}] ====================`);
+  console.log(`[CalDAV-Auth-${requestId}] URL: ${req.method} ${req.originalUrl}`);
+  console.log(`[CalDAV-Auth-${requestId}] Headers:`, JSON.stringify({
+    authorization: req.headers.authorization ? '(present)' : '(missing)',
+    contentType: req.headers['content-type'],
+    userAgent: req.headers['user-agent']
+  }));
+
   // 测试环境：使用环境变量指定的默认用户
   if (DEV_CALDAV_USER) {
+    console.log(`[CalDAV-Auth-${requestId}] DEV mode, using: ${DEV_CALDAV_USER}`);
     const userResult = await pool.query(
       'SELECT id, email FROM users WHERE email = $1 AND is_active = true',
       [DEV_CALDAV_USER]
@@ -54,28 +65,61 @@ async function caldavAuthenticate(req) {
 
   // 生产环境：正常 Basic Auth
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Basic ')) {
+  console.log(`[CalDAV-Auth-${requestId}] authHeader: ${authHeader ? authHeader.substring(0, 50) + '...' : 'null'}`);
+  
+  if (!authHeader) {
+    console.log(`[CalDAV-Auth-${requestId}] FAIL: No authorization header`);
+    return null;
+  }
+  
+  if (!authHeader.startsWith('Basic ')) {
+    console.log(`[CalDAV-Auth-${requestId}] FAIL: Not Basic auth (starts with: ${authHeader.substring(0, 20)})`);
     return null;
   }
 
   try {
     const base64Credentials = authHeader.split(' ')[1];
+    console.log(`[CalDAV-Auth-${requestId}] base64Credentials: ${base64Credentials}`);
+    
     const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
+    console.log(`[CalDAV-Auth-${requestId}] decoded credentials: ${credentials}`);
+    
     const [email, password] = credentials.split(':');
+    console.log(`[CalDAV-Auth-${requestId}] email: ${email}, password: ${password ? '(present)' : '(missing)'}`);
 
     const userResult = await pool.query(
-      'SELECT id, email, password_hash FROM users WHERE email = $1 AND is_active = true',
+      'SELECT id, email, password_hash, is_active FROM users WHERE email = $1',
       [email.toLowerCase()]
     );
 
-    if (userResult.rows.length === 0) return null;
+    console.log(`[CalDAV-Auth-${requestId}] DB query result: found ${userResult.rows.length} user(s)`);
+
+    if (userResult.rows.length === 0) {
+      console.log(`[CalDAV-Auth-${requestId}] FAIL: User not found`);
+      return null;
+    }
 
     const user = userResult.rows[0];
+    console.log(`[CalDAV-Auth-${requestId}] User found: id=${user.id}, email=${user.email}, is_active=${user.is_active}`);
+    console.log(`[CalDAV-Auth-${requestId}] password_hash length: ${(user.password_hash || '').length}`);
+    
+    // 检查 is_active
+    if (!user.is_active) {
+      console.log(`[CalDAV-Auth-${requestId}] FAIL: User not active`);
+      return null;
+    }
+
+    // 验证密码
     const passwordValid = await verifyPassword(password, user.password_hash || '');
+    console.log(`[CalDAV-Auth-${requestId}] Password verification: ${passwordValid ? 'SUCCESS' : 'FAILED'}`);
+    
+    if (!passwordValid) {
+      console.log(`[CalDAV-Auth-${requestId}] FAIL: Wrong password`);
+    }
 
     return passwordValid ? user : null;
   } catch (err) {
-    console.error('CalDAV Auth Error:', err);
+    console.error(`[CalDAV-Auth-${requestId}] ERROR:`, err);
     return null;
   }
 }
