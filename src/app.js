@@ -72,6 +72,8 @@ const corsOptions = isTest ? {
 
 app.use(cors(corsOptions));
 app.use(bodyParser.json());
+app.use(bodyParser.text({ type: ['application/xml', 'text/xml', 'application/dav+xml'], limit: '1mb' }));
+app.use(bodyParser.raw({ type: ['application/dav+xml'], limit: '1mb' }));
 app.use(logger);
 
 // 静态文件服务（前端界面）
@@ -87,8 +89,8 @@ app.get('/', (req, res) => {
 app.use('/dav', require('./routes/caldav'));
 app.use('/principals', require('./routes/caldav'));
 
-// /.well-known/caldav -> /dav/
-app.get('/.well-known/caldav', (req, res) => {
+// /.well-known/caldav -> /dav/ (RFC 6764)
+app.all('/.well-known/caldav', (req, res) => {
   res.redirect(301, '/dav/');
 });
 

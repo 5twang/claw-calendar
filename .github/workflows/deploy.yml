@@ -1,0 +1,128 @@
+# ==========================================================
+# Claw Calendar 自动部署流水线
+# 触发: push 到 main 分支
+# 步骤: 测试 -> SSH 部署 -> Docker 重启
+# ==========================================================
+name: Deploy Claw Calendar
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # 允许手动触发
+
+env:
+  NODE_VERSION: "18"
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+        env:
+          NODE_ENV: test
+          JWT_SECRET: test-jwt-secret-for-ci-pipeline
+
+  deploy:
+    name: Deploy to Production
+    needs: test
+    runs-on: ubuntu-latest
+    if: success()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Create project directory on server
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+            "mkdir -p ${{ secrets.PROJECT_DIR || '~/claw-calendar' }}"
+
+      - name: Upload .env from GitHub Secrets
+        run: |
+          echo '${{ secrets.ENV_PRODUCTION }}' | \
+            ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+            "cat > ${{ secrets.PROJECT_DIR || '~/claw-calendar' }}/.env"
+
+      - name: Sync project files via rsync
+        run: |
+          rsync -avz --delete --exclude='node_modules' \
+            --exclude='.git' \
+            --exclude='*.log' \
+            --exclude='data/*' \
+            --exclude='.DS_Store' \
+            --exclude='tests' \
+            --exclude='jest.config.js' \
+            --exclude='*.md' \
+            --exclude='.env*' \
+            --exclude='deploy.sh' \
+            --exclude='.codebuddy' \
+            --exclude='.github' \
+            ./ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.PROJECT_DIR || '~/claw-calendar' }}/
+
+      - name: Rebuild and restart Docker containers
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+            "cd ${{ secrets.PROJECT_DIR || '~/claw-calendar' }} && sudo docker compose up -d --build"
+
+      - name: Wait for services to be healthy
+        run: |
+          for i in $(seq 1 15); do
+            STATUS=$(ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+              "cd ${{ secrets.PROJECT_DIR || '~/claw-calendar' }} && sudo docker compose ps --format json 2>/dev/null" || echo "")
+            if echo "$STATUS" | grep -q '"Health":"healthy"'; then
+              echo "All services healthy"
+              break
+            fi
+            echo "Waiting for services... attempt $i"
+            sleep 5
+          done
+
+      - name: Verify deployment
+        run: |
+          curl -sSf -o /dev/null -w "HTTP Status: %{http_code}\n" \
+            https://claw-calendar.com/health || echo "Health check failed (may need more time)"
+
+      - name: Show recent logs
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+            "cd ${{ secrets.PROJECT_DIR || '~/claw-calendar' }} && sudo docker compose logs --tail 15 app 2>&1 || true"
+
+  notify:
+    name: Notify deployment status
+    needs: [test, deploy]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check deployment result
+        run: |
+          if [[ "${{ needs.deploy.result }}" == "success" ]]; then
+            echo "Deploy to production completed successfully"
+          elif [[ "${{ needs.deploy.result }}" == "skipped" ]]; then
+            echo "Tests failed - deployment skipped"
+          else
+            echo "Deployment failed - check the logs above"
+            exit 1
+          fi

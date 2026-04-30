@@ -79,13 +79,22 @@ async function caldavAuthenticate(req) {
 
   try {
     const base64Credentials = authHeader.split(' ')[1];
-    console.log(`[CalDAV-Auth-${requestId}] base64Credentials: ${base64Credentials}`);
+    console.log(`[CalDAV-Auth-${requestId}] base64Credentials length: ${base64Credentials ? base64Credentials.length : 0}`);
     
     const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
-    console.log(`[CalDAV-Auth-${requestId}] decoded credentials: ${credentials}`);
+    console.log(`[CalDAV-Auth-${requestId}] decoded credentials length: ${credentials.length}`);
+    console.log(`[CalDAV-Auth-${requestId}] decoded credentials: ${credentials.substring(0, 50)}...`);
     
-    const [email, password] = credentials.split(':');
-    console.log(`[CalDAV-Auth-${requestId}] email: ${email}, password: ${password ? '(present)' : '(missing)'}`);
+    // 正确处理密码中可能包含冒号的情况
+    const colonIndex = credentials.indexOf(':');
+    if (colonIndex === -1) {
+      console.log(`[CalDAV-Auth-${requestId}] FAIL: Invalid credentials format (no colon separator)`);
+      return null;
+    }
+    
+    const email = credentials.substring(0, colonIndex);
+    const password = credentials.substring(colonIndex + 1);
+    console.log(`[CalDAV-Auth-${requestId}] email: ${email}, password length: ${password ? password.length : 0}`);
 
     const userResult = await pool.query(
       'SELECT id, email, password_hash, is_active FROM users WHERE email = $1',
@@ -133,8 +142,11 @@ async function requireAuth(req, res, next) {
 
   const user = await caldavAuthenticate(req);
   if (!user) {
-    res.setHeader('WWW-Authenticate', 'Basic realm="Claw Calendar"');
+    // macOS/iOS 要求 WWW-Authenticate 包含 realm 才能显示密码提示框
+    res.setHeader('WWW-Authenticate', 'Basic realm="Claw Calendar", charset="UTF-8"');
     res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    res.setHeader('DAV', '1, 3, calendar-access, calendar-proxy');
+    // CalDAV RFC 要求 401 响应
     return res.status(401).send(`<?xml version="1.0" encoding="UTF-8"?>
 <d:error xmlns:d="DAV:">
   <d:valid-nonce/>
@@ -280,10 +292,11 @@ async function handlePrincipals(req, res) {
 }
 
 async function handlePrincipalsOptions(req, res) {
-  // 添加 CORS 头
+  // macOS/iOS CalDAV 客户端需要这些头
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'OPTIONS, PROPFIND');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Depth');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Depth, DAV');
+  res.setHeader('Access-Control-Max-Age', '86400');
   res.setHeader('Allow', 'OPTIONS, PROPFIND');
   res.setHeader('DAV', '1, 3, calendar-access, calendar-proxy');
   res.sendStatus(200);
@@ -341,10 +354,11 @@ async function handlePrincipal(req, res) {
 }
 
 async function handlePrincipalOptions(req, res) {
-  // 添加 CORS 头
+  // macOS/iOS CalDAV 客户端需要这些头
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'OPTIONS, PROPFIND');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Depth');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Depth, DAV');
+  res.setHeader('Access-Control-Max-Age', '86400');
   res.setHeader('Allow', 'OPTIONS, PROPFIND');
   res.setHeader('DAV', '1, 3, calendar-access, calendar-proxy');
   res.sendStatus(200);
@@ -421,20 +435,22 @@ async function handleDavRoot(req, res) {
 }
 
 async function handleDavRootOptions(req, res) {
-  // 添加 CORS 头
+  // macOS/iOS CalDAV 客户端需要这些头
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'OPTIONS, PROPFIND, REPORT');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Depth');
-  res.setHeader('Allow', 'OPTIONS, PROPFIND, REPORT');
+  res.setHeader('Access-Control-Allow-Methods', 'OPTIONS, PROPFIND, REPORT, PROPPATCH, PUT, DELETE, GET');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Depth, DAV, If-None-Match, If-Match');
+  res.setHeader('Access-Control-Max-Age', '86400');
+  res.setHeader('Allow', 'OPTIONS, PROPFIND, REPORT, PROPPATCH, PUT, DELETE, GET');
   res.setHeader('DAV', '1, 3, calendar-access, calendar-proxy');
   res.sendStatus(200);
 }
 
 async function handleCalendarOptions(req, res) {
-  // 添加 CORS 头
+  // macOS/iOS CalDAV 客户端需要这些头
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'OPTIONS, PROPFIND, REPORT, PROPPATCH, PUT, DELETE, GET');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Depth, If-None-Match, If-Match');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Depth, DAV, If-None-Match, If-Match, Prefer');
+  res.setHeader('Access-Control-Max-Age', '86400');
   res.setHeader('Allow', 'OPTIONS, PROPFIND, REPORT, PROPPATCH, PUT, DELETE, GET');
   res.setHeader('DAV', '1, 3, calendar-access, calendar-proxy');
   res.sendStatus(200);

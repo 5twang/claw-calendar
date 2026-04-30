@@ -21,5 +21,8 @@ ROADMAP.md
 周视图时间轴说明.md
 TESTING.md
 server.log
+deploy.sh
 # CodeBuddy 工作目录
 .codebuddy/
+# 不要忽略 .github (需要提交 CI/CD 配置)
+!.github/
