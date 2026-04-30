@@ -45,30 +45,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup SSH agent
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
-      - name: Add server to known hosts
+      - name: Write SSH key
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+          echo '${{ secrets.SSH_PRIVATE_KEY }}' > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Create project directory on server
         run: |
-          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+          ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
             "mkdir -p ${{ secrets.PROJECT_DIR || '~/claw-calendar' }}"
 
       - name: Upload .env from GitHub Secrets
         run: |
           echo '${{ secrets.ENV_PRODUCTION }}' | \
-            ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+            ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
             "cat > ${{ secrets.PROJECT_DIR || '~/claw-calendar' }}/.env"
 
       - name: Sync project files via rsync
         run: |
-          rsync -avz --delete --exclude='node_modules' \
+          rsync -avz --delete -e "ssh -i ~/.ssh/deploy_key" --exclude='node_modules' \
             --exclude='.git' \
             --exclude='*.log' \
             --exclude='data/*' \
@@ -84,13 +81,13 @@ jobs:
 
       - name: Rebuild and restart Docker containers
         run: |
-          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+          ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
             "cd ${{ secrets.PROJECT_DIR || '~/claw-calendar' }} && sudo docker compose up -d --build"
 
       - name: Wait for services to be healthy
         run: |
           for i in $(seq 1 15); do
-            STATUS=$(ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+            STATUS=$(ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
               "cd ${{ secrets.PROJECT_DIR || '~/claw-calendar' }} && sudo docker compose ps --format json 2>/dev/null" || echo "")
             if echo "$STATUS" | grep -q '"Health":"healthy"'; then
               echo "All services healthy"
@@ -107,7 +104,7 @@ jobs:
 
       - name: Show recent logs
         run: |
-          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+          ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
             "cd ${{ secrets.PROJECT_DIR || '~/claw-calendar' }} && sudo docker compose logs --tail 15 app 2>&1 || true"
 
   notify:
