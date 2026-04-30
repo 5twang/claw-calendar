@@ -13,6 +13,7 @@ const { asyncHandler } = require('../middleware/errorHandler');
 const pool = require('../config/database');
 const { decryptCalendarData, decryptEventList, decryptEventData, encryptEventData } = require('../config/security');
 const { DEFAULT_TIMEZONE } = require('../utils/constants');
+const { verifyPassword } = require('../utils/crypto');
 
 // ============================================================
 // 辅助函数
@@ -62,27 +63,15 @@ async function caldavAuthenticate(req) {
     const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
     const [email, password] = credentials.split(':');
 
-    const bcrypt = require('bcryptjs');
     const userResult = await pool.query(
-      'SELECT id, email FROM users WHERE email = $1 AND is_active = true',
+      'SELECT id, email, password_hash FROM users WHERE email = $1 AND is_active = true',
       [email.toLowerCase()]
     );
 
     if (userResult.rows.length === 0) return null;
 
     const user = userResult.rows[0];
-    const passwordValid = await bcrypt.compare(password, user.password_hash || '');
-
-    // 如果没有 password_hash，尝试直接比较（测试用）
-    if (!user.password_hash) {
-      const testResult = await pool.query(
-        'SELECT id, email FROM users WHERE email = $1 AND is_active = true',
-        [email.toLowerCase()]
-      );
-      if (testResult.rows.length > 0) {
-        return testResult.rows[0];
-      }
-    }
+    const passwordValid = await verifyPassword(password, user.password_hash || '');
 
     return passwordValid ? user : null;
   } catch (err) {
@@ -261,7 +250,7 @@ async function handlePrincipal(req, res) {
   const userId = req.params.userId;
 
   // 验证请求的是自己的 principal
-  if (parseInt(userId) !== user.id) {
+  if (userId !== user.id) {
     res.setHeader('Content-Type', 'application/xml; charset=utf-8');
     return res.status(403).send(`<?xml version="1.0" encoding="UTF-8"?>
 <d:error xmlns:d="DAV:">
@@ -416,7 +405,7 @@ async function handlePutEvent(req, res) {
   const { userId, calendarName, eventId } = req.params;
 
   // 验证用户
-  if (parseInt(userId) !== user.id) {
+  if (userId !== user.id) {
     return res.status(403).send('Forbidden');
   }
 
@@ -484,7 +473,7 @@ async function handleDeleteEvent(req, res) {
   const { userId, calendarName, eventId } = req.params;
 
   // 验证用户
-  if (parseInt(userId) !== user.id) {
+  if (userId !== user.id) {
     return res.status(403).send('Forbidden');
   }
 
@@ -500,7 +489,7 @@ async function handleGetEvent(req, res) {
   const { userId, calendarName, eventId } = req.params;
 
   // 验证用户
-  if (parseInt(userId) !== user.id) {
+  if (userId !== user.id) {
     return res.status(403).send('Forbidden');
   }
 
@@ -568,7 +557,7 @@ async function handleReportEvents(req, res) {
   const { userId, calendarName } = req.params;
 
   // 验证用户
-  if (parseInt(userId) !== user.id) {
+  if (userId !== user.id) {
     return res.status(403).send('Forbidden');
   }
 

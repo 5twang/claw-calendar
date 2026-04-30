@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS events (
 -- API访问日志
 CREATE TABLE IF NOT EXISTS api_logs (
     id BIGSERIAL PRIMARY KEY,
+    api_key_id UUID REFERENCES api_keys(id),
     calendar_id UUID REFERENCES calendars(id),
     user_id UUID REFERENCES users(id),
     action VARCHAR(50) NOT NULL,
@@ -61,6 +62,21 @@ CREATE TABLE IF NOT EXISTS user_sessions (
     token_jti VARCHAR(255) NOT NULL,
     expires_at TIMESTAMP NOT NULL,
     created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- API Keys 表
+CREATE TABLE IF NOT EXISTS api_keys (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(100),
+    key_hash VARCHAR(255) NOT NULL,
+    prefix VARCHAR(20) NOT NULL,
+    permissions JSONB DEFAULT '{}',
+    expires_at TIMESTAMP,
+    is_active BOOLEAN DEFAULT true,
+    last_used_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
 );
 
 -- 邮件验证表
