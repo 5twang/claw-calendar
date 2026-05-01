@@ -100,7 +100,7 @@ router.get('/', authenticate, asyncHandler(async (req, res) => {
     isPublic: cal.is_public,
     subscribeToken: cal.subscribe_token,
     eventCount: parseInt(cal.event_count),
-    subscriptionUrl: `${req.protocol}://${req.get('host')}/calendars/${cal.id}.ics`,
+    subscriptionUrl: `${req.protocol}://${req.get('host')}/calendars/${cal.id}.ics?token=${cal.subscribe_token}`,
     createdAt: formatDateTime(cal.created_at)
   }));
 
@@ -140,7 +140,7 @@ router.get('/:id', authenticateToken, checkCalendarOwnership, asyncHandler(async
       isPublic: cal.is_public,
       subscribeToken: cal.subscribe_token,
       eventCount: parseInt(cal.event_count),
-      subscriptionUrl: `${req.protocol}://${req.get('host')}/calendars/${cal.id}.ics`,
+      subscriptionUrl: `${req.protocol}://${req.get('host')}/calendars/${cal.id}.ics?token=${cal.subscribe_token}`,
       createdAt: formatDateTime(cal.created_at)
     }
   });
