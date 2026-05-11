@@ -117,6 +117,9 @@ app.use('/api/keys', require('./routes/apiKeys'));
 app.use('/api/calendars', require('./routes/calendars'));
 app.use('/api/calendars/:calendarId/events', require('./routes/events'));
 
+// ============ Admin 管理路由 ============
+app.use('/api/admin', require('./routes/admin'));
+
 // ============ ICS 订阅路由 ============
 app.get('/calendars/:id.ics', async (req, res) => {
   try {

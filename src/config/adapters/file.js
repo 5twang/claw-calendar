@@ -253,6 +253,9 @@ class FileAdapter extends DatabaseAdapter {
     if (tableName === 'users' && (row.is_active === undefined || row.is_active === null)) {
       row.is_active = false;
     }
+    if (tableName === 'users' && (row.is_admin === undefined || row.is_admin === null)) {
+      row.is_admin = false;
+    }
     if (tableName === 'calendars' && (row.is_public === undefined || row.is_public === null)) {
       row.is_public = false;
     }
