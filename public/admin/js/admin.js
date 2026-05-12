@@ -237,9 +237,14 @@
       var roleClass = u.is_admin ? 'badge-admin' : 'badge-user';
       var roleText = u.is_admin ? '管理员' : '用户';
       var created = formatDate(u.created_at);
-      var actionBtn = u.is_active
-        ? '<button class="btn btn-sm btn-xs btn-danger btn-toggle" data-id="' + u.id + '" data-action="disable">禁用</button>'
-        : '<button class="btn btn-sm btn-xs btn-success btn-toggle" data-id="' + u.id + '" data-action="enable">启用</button>';
+      var actionBtn = '<div class="action-group">';
+      if (u.is_active) {
+        actionBtn += '<button class="btn btn-sm btn-xs btn-danger btn-toggle" data-id="' + u.id + '" data-action="disable">禁用</button>';
+      } else {
+        actionBtn += '<button class="btn btn-sm btn-xs btn-success btn-toggle" data-id="' + u.id + '" data-action="enable">启用</button>';
+      }
+      actionBtn += '<button class="btn btn-sm btn-xs btn-danger btn-delete" data-id="' + u.id + '" style="margin-left:4px;">删除</button>';
+      actionBtn += '</div>';
 
       html += '<tr>' +
         '<td><span class="cell-link" data-id="' + u.id + '">' + esc(u.email) + '</span></td>' +
@@ -354,6 +359,25 @@
     loadUsers();
   }
 
+  // ====== Delete user ======
+  async function handleDeleteUser(userId) {
+    if (!confirm('确定要删除该用户吗？此操作不可恢复（将同时删除该用户的所有日历、事件和API密钥）。')) return;
+
+    if (!confirm('再次确认：彻底删除用户及其所有数据？')) return;
+
+    var res = await apiFetch('/api/admin/users/' + encodeURIComponent(userId), {
+      method: 'DELETE'
+    });
+
+    if (!res || res.error) {
+      showToast((res && res.message) || '删除失败', 'error');
+      return;
+    }
+
+    showToast('用户已彻底删除', 'success');
+    loadUsers();
+  }
+
   // ====== Event delegation ======
   function handleTableClick(e) {
     var target = e.target;
@@ -370,6 +394,13 @@
       var userId = target.getAttribute('data-id');
       var action = target.getAttribute('data-action');
       if (userId && action) handleToggleUser(userId, action);
+      return;
+    }
+
+    // Delete button
+    if (target.classList.contains('btn-delete')) {
+      var userId = target.getAttribute('data-id');
+      if (userId) handleDeleteUser(userId);
       return;
     }
   }

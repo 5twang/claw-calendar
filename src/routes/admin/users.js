@@ -381,4 +381,56 @@ router.patch('/:id', asyncHandler(async (req, res) => {
   }
 }));
 
+// ==================== 删除用户 ====================
+router.delete('/:id', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  // 防止管理员删除自己
+  if (req.user && req.user.id === id) {
+    throw errors.badRequest('不能删除自己的账户');
+  }
+
+  const adapterType = pool.getType ? pool.getType() : 'file';
+
+  if (adapterType === 'postgres') {
+    const checkResult = await pool.query('SELECT id, email, name FROM users WHERE id = $1', [id]);
+    if (checkResult.rows.length === 0) {
+      throw errors.notFound('用户不存在');
+    }
+
+    const user = checkResult.rows[0];
+
+    // 手动删除 api_logs（无 CASCADE）后再删除用户
+    await pool.query('DELETE FROM api_logs WHERE user_id = $1', [id]);
+    await pool.query('DELETE FROM users WHERE id = $1', [id]);
+
+    return res.json({
+      success: true,
+      message: '用户已删除',
+      deletedUser: { id: user.id, email: user.email, name: user.name }
+    });
+  } else {
+    // 文件适配器
+    const checkResult = await pool.query('SELECT id, email, name FROM users WHERE id = $1', [id]);
+    if (checkResult.rows.length === 0) {
+      throw errors.notFound('用户不存在');
+    }
+
+    const user = checkResult.rows[0];
+
+    await pool.query('DELETE FROM api_logs WHERE user_id = $1', [id]);
+    await pool.query('DELETE FROM api_keys WHERE user_id = $1', [id]);
+    await pool.query('DELETE FROM calendars WHERE user_id = $1', [id]);
+    await pool.query('DELETE FROM email_verifications WHERE user_id = $1', [id]);
+    await pool.query('DELETE FROM user_sessions WHERE user_id = $1', [id]);
+    await pool.query('DELETE FROM users WHERE id = $1', [id]);
+
+    return res.json({
+      success: true,
+      message: '用户已删除',
+      deletedUser: { id: user.id, email: user.email, name: user.name }
+    });
+  }
+}));
+
 module.exports = router;
